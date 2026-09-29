@@ -323,3 +323,41 @@ def load_problem(path: str | Path) -> Problem:
 
     with Path(path).open(encoding="utf-8") as stream:
         return Problem.from_dict(json.load(stream))
+
+
+def oriented_size(package: Package, orientation: Orientation) -> Position:
+    """Dimensi sepanjang x/y/z, dari pemetaan sisi asli w/l/h."""
+    axes = dict(zip(orientation.value, package.dimensions))
+    return axes["x"], axes["y"], axes["z"]
+
+
+def rotate(orientation: Orientation, axis: str) -> Orientation:
+    """Rotasi 90 derajat; tanda arah sisi tidak dibedakan oleh enam label soal."""
+    if axis not in ("x", "y", "z"):
+        raise ValueError("axis harus x, y, atau z")
+    a, b = [item for item in "xyz" if item != axis]
+    return Orientation(orientation.value.translate(str.maketrans({a: b, b: a})))
+
+
+def occupancy(problem: Problem, state: State) -> dict[Position, str | None]:
+    """Semua sel truk, termasuk sel kosong. State invalid ditolak."""
+    from .validation import require_valid
+
+    require_valid(problem, state)
+    cells = {
+        (x, y, z): None
+        for x in range(problem.truck.w)
+        for y in range(problem.truck.l)
+        for z in range(problem.truck.h)
+    }
+    for package in problem.packages:
+        placement = state.placements[package.id]
+        if placement.position is None:
+            continue
+        x, y, z = placement.position
+        w, l, h = oriented_size(package, placement.orientation)
+        for xx in range(x, x + w):
+            for yy in range(y, y + l):
+                for zz in range(z, z + h):
+                    cells[xx, yy, zz] = package.id
+    return cells
