@@ -50,3 +50,56 @@ def repair(problem, child, rng):
             dropped += 1
     require_valid(problem, state)
     return state, dropped
+
+
+def run(problem, config, rng, initial=None):
+    config = configuration("ga", config)
+    start = perf_counter()
+    size = config["population_size"]
+    population = [initial_state(problem, rng, initial)]
+    population.extend(random_feasible_state(problem, rng) for _ in range(size - 1))
+    scores = [objective(problem, state) for state in population]
+    first = best = population[max(range(size), key=lambda i: scores[i])]
+    first_score = best_score = max(scores)
+    initial_population = [state.to_dict() for state in population]
+    initial_scores = scores[:]
+    maxima, means, sizes = [max(scores)], [fsum(scores) / size], [size]
+    dropped = mutations = proposals = invalid = 0
+    for _ in range(config["generations"]):
+        ranked = sorted(range(size), key=lambda i: scores[i], reverse=True)
+        following = [population[i] for i in ranked[:config["elitism"]]]
+        while len(following) < size:
+            first_parent = roulette(population, scores, rng)
+            second_parent = roulette(population, scores, rng)
+            for raw in crossover(problem, first_parent, second_parent, rng):
+                if len(following) == size:
+                    break
+                child, lost = repair(problem, raw, rng)
+                dropped += lost
+                if rng.random() < config["mutation_rate"]:
+                    neighbor = sample_feasible_neighbor(problem, child, rng, config["max_attempts"])
+                    proposals += neighbor.attempts
+                    invalid += neighbor.rejected
+                    if neighbor.state is not None:
+                        child = neighbor.state
+                        mutations += 1
+                following.append(child)
+        population = following
+        scores = [objective(problem, state) for state in population]
+        winner = max(range(size), key=lambda i: scores[i])
+        if scores[winner] > best_score:
+            best, best_score = population[winner], scores[winner]
+        maxima.append(max(scores))
+        means.append(fsum(scores) / size)
+        sizes.append(len(population))
+    final_index = max(range(size), key=lambda i: scores[i])
+    return RunResult(
+        "ga", config["seed"], config, first, population[final_index], first_score, scores[final_index],
+        tuple(maxima), perf_counter() - start, "generation_limit", best, best_score,
+        {"generations": config["generations"], "population_size": size,
+         "population_sizes": sizes, "max_history": maxima, "mean_history": means,
+         "initial_population": initial_population, "initial_population_scores": initial_scores,
+         "final_population": [state.to_dict() for state in population], "final_population_scores": scores,
+         "repair_dropped_genes": dropped, "mutations": mutations, "proposals": proposals,
+         "invalid_or_noop": invalid, "objective_evaluations": size * len(maxima)},
+    )
