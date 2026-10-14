@@ -69,8 +69,14 @@ def plot_state(problem, state, path, title="State"):
 
 def plot_curves(result, directory, title):
     figure, axis = plt.subplots()
-    axis.plot(result.objective_history, color=PALETTE[0],
-              label="Max populasi" if result.algorithm == "ga" else "Value")
+    if result.algorithm == "hc" and result.metrics.get("variant") == "random_restart":
+        # Tiap restart diplot sendiri biar iterasinya ga kecampur
+        for index, run in enumerate(result.metrics["runs"]):
+            axis.plot(run["objective_history"], color=PALETTE[index % len(PALETTE)],
+                      label=f"Run {index}", marker=".")
+    else:
+        axis.plot(result.objective_history, color=PALETTE[0],
+                  label="Max populasi" if result.algorithm == "ga" else "Value")
     if result.algorithm == "ga":
         axis.plot(result.metrics["mean_history"], color=PALETTE[1], label="Rata-rata populasi")
     axis.set(title=title, xlabel="Generasi" if result.algorithm == "ga" else "Iterasi", ylabel="Objective")
@@ -91,7 +97,8 @@ def plot_curves(result, directory, title):
 def render_run(problem, result, directory, case_name):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    title = f"{case_name} | {result.algorithm.upper()} | seed={result.seed}"
+    algorithm = result.metrics.get("variant", result.algorithm.upper())
+    title = f"{case_name} | {algorithm} | seed={result.seed}"
     plot_state(problem, result.initial_state, directory / "initial.html", f"Initial | {title}")
     plot_state(problem, result.final_state, directory / "final.html", f"Final | {title}")
     plot_curves(result, directory, title)
