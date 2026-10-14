@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from .model import Problem, RunResult, State, occupancy
-from .validation import objective, require_valid
+from .validation import objective
 
 
 # memastikan semua hasil run memang berasal dari soal (input) yang sama, dan isi soal di file hasil tidak diubah-ubah.
@@ -24,7 +24,7 @@ def _same(a, b):
 def check_result(problem: Problem, result: RunResult):
     from .algorithms.common import configuration
 
-    config = configuration(result.algorithm, result.config)
+    config = configuration(result.algorithm, result.config, result.metrics.get("variant"))
     if config["seed"] != result.seed:
         raise ValueError("Seed hasil dan konfigurasi berbeda")
     for label in ("initial", "final", "best"):
@@ -46,10 +46,35 @@ def check_result(problem: Problem, result: RunResult):
         raise ValueError("Best score tidak sesuai histori")
     metrics = result.metrics
     if result.algorithm == "hc":
-        if metrics["iterations"] != len(history) - 1 or any(a > b for a, b in zip(history, history[1:])):
-            raise ValueError("Histori HC tidak konsisten")
-        if not _same(history[-1], result.final_score):
-            raise ValueError("Skor akhir HC tidak sesuai histori")
+        if metrics.get("variant") == "random_restart":
+            # Skor boleh turun pas restart, tapi tiap run tetep ga boleh turun
+            runs = metrics["runs"]
+            if len(runs) != config["max_restarts"] + 1 or metrics["restarts"] != len(runs) - 1:
+                raise ValueError("Jumlah restart HC tidak konsisten")
+            combined = []
+            for index, run in enumerate(runs):
+                local = run["objective_history"]
+                if (not local or run["restart"] != index or run["iterations"] != len(local) - 1
+                        or any(a > b for a, b in zip(local, local[1:]))):
+                    raise ValueError("Histori per restart HC tidak konsisten")
+                for label, score in (("initial", local[0]), ("final", local[-1])):
+                    state = State.from_dict(problem, run[label + "_state"])
+                    if not _same(objective(problem, state), score):
+                        raise ValueError("Skor per restart HC tidak sesuai state")
+                    if index == 0 and label == "initial" and state != result.initial_state:
+                        raise ValueError("Initial state restart pertama berbeda")
+                combined.extend(local)
+            counts = [run["iterations"] for run in runs]
+            if (combined != list(history) or metrics["iterations"] != sum(counts)
+                    or metrics["iterations_per_restart"] != counts):
+                raise ValueError("Histori gabungan restart HC tidak konsisten")
+            if not _same(result.final_score, max(history)):
+                raise ValueError("Hasil random restart HC harus yang terbaik")
+        else:
+            if metrics["iterations"] != len(history) - 1 or any(a > b for a, b in zip(history, history[1:])):
+                raise ValueError("Histori HC tidak konsisten")
+            if not _same(history[-1], result.final_score):
+                raise ValueError("Skor akhir HC tidak sesuai histori")
     elif result.algorithm == "sa":
         records = metrics["records"]
         if len(records) != len(history) - 1 or metrics["iterations"] != len(records):

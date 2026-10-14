@@ -32,21 +32,34 @@ DEFAULTS = {
 }
 
 
-def configuration(algorithm, config):
+HC_DEFAULTS = {
+    "steepest_ascent": {},
+    "sideways": {"max_sideways_moves": 100},
+    "stochastic": {},
+    "random_restart": {"max_restarts": 3},
+}
+
+
+def configuration(algorithm, config, variant=None):
     # Combine semua parameter pake default dulu, baru nanti validate
     if algorithm not in DEFAULTS:
         raise ValueError("Algoritma harus hc, sa, atau ga")
-    unknown = set(config) - set(DEFAULTS[algorithm])
+    result = DEFAULTS[algorithm].copy()
+    if algorithm == "hc":
+        variant = "steepest_ascent" if variant is None else variant
+        if variant not in HC_DEFAULTS:
+            raise ValueError("Varian HC tidak dikenal")
+        result.update(HC_DEFAULTS[variant])
+    unknown = set(config) - set(result)
     if unknown:
         raise ValueError(f"Parameter tidak dikenal: {sorted(unknown)}")
-    # Copy biar ga ngubah ke DEFAULTS.
-    result = DEFAULTS[algorithm].copy()
     result.update(config)
     integer_keys = {
         "seed", "iterations", "generations", "population_size",
         "elitism", "max_attempts",
+        "max_sideways_moves", "max_restarts",
     }
-    zero_allowed_keys = {"iterations", "generations", "elitism"}
+    zero_allowed_keys = {"iterations", "generations", "elitism", "max_sideways_moves", "max_restarts"}
     for key, value in result.items():
         if key in integer_keys:
             if isinstance(value, bool) or not isinstance(value, int):

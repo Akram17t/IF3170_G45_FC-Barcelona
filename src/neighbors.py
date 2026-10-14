@@ -1,10 +1,11 @@
 # Move yang ga valid atau ga mengubah state return none
 from dataclasses import dataclass
 from enum import Enum
+from itertools import combinations
 
 from .initialize import candidate_position
 from .model import Placement, Position, State, oriented_size, rotate
-from .validation import require_valid, validate
+from .validation import objective, require_valid, validate
 
 
 class MoveKind(str, Enum):
@@ -95,6 +96,63 @@ def sample_feasible_neighbor(problem, state, rng, max_attempts=100):
         if candidate is not None:
             return NeighborResult(candidate, move, attempt, attempt - 1, "found")
     return NeighborResult(None, None, max_attempts, max_attempts, "attempt_limit")
+
+
+def iter_feasible_neighbors(problem, state):
+    # Coba semua move, yang valid dikasih satu2 lewat yield
+    require_valid(problem, state)
+    # Tiap pasangan dicoba sekali, termasuk paket yang di luar
+    for first, second in combinations(problem.packages, 2):
+        candidate = apply_move(problem, state, Move(MoveKind.SWAP, first.id, other_id=second.id))
+        if candidate is not None:
+            yield candidate
+    for package in problem.packages:
+        placement = state.placements[package.id]
+        # Coba rotasi di masing2 sumbu
+        for axis in "xyz":
+            candidate = apply_move(problem, state, Move(MoveKind.ROTATE, package.id, axis=axis))
+            if candidate is not None:
+                yield candidate
+        # Paket di dalam juga bisa dicoba dikeluarin
+        if placement.position is not None:
+            candidate = apply_move(problem, state, Move(MoveKind.RELOCATE, package.id))
+            if candidate is not None:
+                yield candidate
+        size = oriented_size(package, placement.orientation)
+        limits = tuple(a - b for a, b in zip(problem.truck.dimensions, size))
+        if min(limits) < 0:
+            continue
+        # Coba z=0 atau setinggi atap paket lain biar ga melayang
+        levels = {0}
+        for other in problem.packages:
+            support = state.placements[other.id]
+            if other.id != package.id and support.position is not None and not other.is_fragile:
+                top = support.position[2] + oriented_size(other, support.orientation)[2]
+                if top <= limits[2]:
+                    levels.add(top)
+        for x in range(limits[0] + 1):
+            for y in range(limits[1] + 1):
+                for z in sorted(levels):
+                    candidate = apply_move(problem, state, Move(
+                        MoveKind.RELOCATE, package.id, position=(x, y, z)))
+                    if candidate is not None:
+                        yield candidate
+
+
+def best_feasible_neighbor(problem, state, rng):
+    # Ambil value tertinggi tanpa nyimpen semua neighbor dalam list
+    best, best_score, ties, evaluated = None, float("-inf"), 0, 0
+    for candidate in iter_feasible_neighbors(problem, state):
+        score = objective(problem, candidate)
+        evaluated += 1
+        if score > best_score:
+            best, best_score, ties = candidate, score, 1
+        elif score == best_score:
+            # Kalo value sama, pilih random dengan peluang 1/jumlah candidate yang seri
+            ties += 1
+            if rng.randrange(ties) == 0:
+                best = candidate
+    return best, best_score, evaluated
 
 
 def improving_neighbor_exists(problem, state):
