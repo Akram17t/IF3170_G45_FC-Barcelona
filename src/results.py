@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from .model import Problem, RunResult, State, occupancy
-from .validation import objective, require_valid
+from .validation import objective
 
 
 # memastikan semua hasil run memang berasal dari soal (input) yang sama, dan isi soal di file hasil tidak diubah-ubah.
