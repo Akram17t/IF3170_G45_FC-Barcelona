@@ -1,2 +1,2 @@
 matplotlib>=3.9,<4
-reportlab>=4.2,<5
+plotly>=6.6,<7
