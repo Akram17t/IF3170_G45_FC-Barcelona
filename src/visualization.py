@@ -1,5 +1,3 @@
-"""Visualisasi state dengan Plotly dan grafik eksperimen dengan Matplotlib."""
-
 from html import escape
 from pathlib import Path
 
@@ -11,7 +9,7 @@ import plotly.graph_objects as go
 from .model import oriented_size
 from .validation import objective
 
-# Warna Palet Barcelona
+# Warna Palet Barca
 PALETTE = ["#004D98", "#A50044", "#EDBB00", "#DB0030", "#FFED02"]
 
 

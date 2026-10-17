@@ -1,5 +1,3 @@
-"""Varian Hill Climbing sesuai materi IF3170, slide 22 dan 26-29."""
-
 from random import Random
 from time import perf_counter
 
