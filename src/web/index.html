@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Truck Packing Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+@font-face {
+  font-family: "FC Barcelona";
+  src: url("/font/FCBARCELONAPLAYSOLID.woff2") format("woff2"), url("/font/FCBARCELONAPLAYSOLID.woff") format("woff"),
+       url("/font/FCBARCELONAPLAYSOLID.ttf") format("truetype");
+}
+:root {
+  --bg: #0b1130; --panel: #ffffff; --ink: #0b1430; --muted: #5b6479; --line: #dde1ea; --soft: #f3f5fa;
+  --blue: #004D98; --garnet: #A50044; --gold: #EDBB00; --navy: #0a1633;
+  --ok: #0a7d4b; --bad: #b3261e; --mesh: #3b82c4; --shadow: 0 10px 30px rgba(10, 22, 51, .18), 0 2px 6px rgba(10, 22, 51, .12);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #070b1f; --panel: #121a30; --ink: #eef1f8; --muted: #9ba5bd; --line: #26304a; --soft: #1a2340;
+    --blue: #4d8fd6; --garnet: #e0457f; --navy: #050a18; --ok: #4cc38a; --bad: #ff7b72; --mesh: #4d8fd6;
+    --shadow: 0 12px 32px rgba(0, 0, 0, .65), 0 2px 6px rgba(0, 0, 0, .5);
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 60px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 Inter, system-ui, sans-serif; }
+.stripe { height: 6px; background: linear-gradient(90deg, #004D98 50%, #A50044 50%); }
+header { background: linear-gradient(180deg, #6b1a2b 0%, #3d1230 50%, #0b1130 100%); color: #fff; }
+.bar { padding: 14px 24px; }
+.team { font: 700 15px "FC Barcelona", "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .12em; }
+.team::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 8px; background: var(--gold); transform: rotate(45deg); }
+.hero { padding: 30px 24px 64px; }
+.hero > div { max-width: 1600px; margin: auto; }
+h1 { margin: 4px 0 6px; font: 800 clamp(40px, 7vw, 76px)/.95 "FC Barcelona", "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .01em; }
+h1 em { font-style: normal; color: var(--gold); }
+.hero p.sub { margin: 0; max-width: 640px; opacity: .85; }
+main { display: grid; grid-template-columns: 350px 1fr; gap: 20px; padding: 24px; max-width: 1600px; margin: auto; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } }
+aside { align-self: start; }
+section.card { background: var(--panel); border-radius: 20px; padding: 18px; margin-bottom: 22px; min-width: 0;
+               box-shadow: var(--shadow); border-top: 4px solid var(--blue); }
+section.card:nth-of-type(even) { border-top-color: var(--garnet); }
+h2 { margin: 0 0 10px; font: 700 20px/1 "FC Barcelona", "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .06em; }
+h2::before { content: ""; display: inline-block; width: 4px; height: 16px; margin-right: 8px; background: var(--gold); vertical-align: -2px; }
+label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 2px; font-weight: 500; }
+input, select, button, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+input:focus, select:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+input, select { width: 100%; }
+input[type=checkbox], input[type=radio] { width: auto; }
+button { cursor: pointer; width: auto; font-weight: 600; transition: background .15s, color .15s; }
+button:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+button.primary { background: var(--garnet); border-color: var(--garnet); color: #fff; padding: 10px 26px; border-radius: 999px;
+                 font: 700 16px "FC Barcelona", "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .12em; }
+button.primary:hover:not(:disabled) { background: var(--blue); border-color: var(--blue); color: #fff; }
+button:disabled { opacity: .45; cursor: default; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row > * { flex: 1; min-width: 60px; }
+.row > button { flex: 0 0 auto; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.table-wrap { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 4px; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { padding: 4px 6px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--navy); color: #fff; font: 600 13px "FC Barcelona", "Barlow Condensed", sans-serif;
+     text-transform: uppercase; letter-spacing: .08em; }
+td input, td select { padding: 2px 4px; font-size: 12px; min-width: 42px; }
+td input.id { min-width: 52px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.stat { background: var(--soft); border-radius: 4px; padding: 10px 12px; border-left: 4px solid var(--blue); }
+.stat:nth-child(even) { border-left-color: var(--garnet); }
+.stat b { display: block; font: 700 32px/1.1 "FC Barcelona", "Barlow Condensed", sans-serif; }
+.stat span { font: 600 12px "FC Barcelona", "Barlow Condensed", sans-serif; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
+#status { min-height: 20px; margin: 0 0 10px; }
+#status.error { color: var(--bad); font-weight: 600; }
+#view3d { width: 100%; height: 540px; }
+#curves { width: 100%; height: 340px; }
+.tabs label { display: inline-flex; align-items: center; gap: 5px; margin: 0 14px 0 0; color: var(--ink); font-size: 13px; font-weight: 600; }
+tr.pick { cursor: pointer; }
+tr.pick:hover td { background: var(--soft); }
+tr.on td { background: var(--soft); font-weight: 700; }
+tr.on td:first-child { box-shadow: inset 4px 0 var(--garnet); }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+footer { padding: 20px 24px 32px; text-align: center; font: 600 13px "FC Barcelona", "Barlow Condensed", sans-serif; color: rgba(255,255,255,.6);
+         text-transform: uppercase; letter-spacing: .15em; }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="bar">
+    <span class="team">G45 &middot; FC-Barcelona</span>
+  </div>
+  <div class="hero"><div>
+    <h1>Truck <em>Packing</em> Lab</h1>
+    <p class="sub">Program pencarian lokal untuk menata paket ke dalam truk agar total nilai yang terangkut maksimal, dengan algoritma Hill-Climbing, Simulated Annealing, dan Genetic Algorithm.</p>
+  </div></div>
+</header>
+
+<main>
+<aside>
+  <section class="card" id="kasus">
+    <h2>Kasus</h2>
+    <select id="caseSelect"></select>
+    <div class="row" style="margin-top:6px">
+      <button id="uploadBtn">Unggah JSON</button>
+      <button id="downloadCaseBtn">Unduh JSON</button>
+      <input type="file" id="uploadFile" accept=".json" hidden>
+    </div>
+    <div class="row">
+      <div><label>Lebar (x)</label><input id="tw" type="number" min="1"></div>
+      <div><label>Panjang (y)</label><input id="tl" type="number" min="1"></div>
+      <div><label>Tinggi (z)</label><input id="th" type="number" min="1"></div>
+      <div><label>Kapasitas</label><input id="tcap" type="number" min="0"></div>
+    </div>
+    <div class="table-wrap"><table id="pkgTable"></table></div>
+    <div class="row" style="margin-top:6px">
+      <button id="addPkg">+ Paket</button>
+      <input id="randN" type="number" min="1" value="30" title="Jumlah paket acak">
+      <input id="randSeed" type="number" value="1" title="Seed pembangkit kasus">
+      <button id="randBtn">Kasus acak</button>
+    </div>
+    <div class="hint">Kasus acak memakai ukuran truk di atas, kapasitas diatur 60% dari total berat.</div>
+  </section>
+
+  <section class="card" id="algoritma">
+    <h2>Algoritma</h2>
+    <select id="algo">
+      <option value="hc">Hill-Climbing</option>
+      <option value="sa">Simulated Annealing</option>
+      <option value="ga" selected>Genetic Algorithm</option>
+    </select>
+    <div id="variantBox" hidden><label>Varian</label><select id="variant"></select></div>
+    <div id="params"></div>
+    <div class="hint">Isi beberapa nilai dengan koma (misal <code>20,40,80</code>) untuk eksperimen. Semua kombinasi dijalankan berurutan.</div>
+    <label style="margin-top:10px"><input type="checkbox" id="save" checked> Simpan result.json dan grafik PNG ke output/</label>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="runBtn">Jalankan</button>
+      <button id="stopBtn" disabled>Berhenti</button>
+    </div>
+  </section>
+</aside>
+
+<div>
+  <section class="card" id="hasil" hidden>
+    <div id="status" class="hint"></div>
+    <div class="cards" id="stats"></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <div class="tabs" style="flex:3">
+        <label><input type="radio" name="which" value="initial" checked> Awal</label>
+        <label><input type="radio" name="which" value="final"> Akhir</label>
+        <label><input type="radio" name="which" value="best"> Terbaik</label>
+        <label><input type="checkbox" id="showOutside" checked> paket di luar</label>
+      </div>
+      <button id="png3d">PNG 3D</button>
+    </div>
+    <div id="view3d"></div>
+    <div class="hint"><span class="swatch" style="background:var(--mesh)"></span>biasa
+      <span class="swatch" style="background:var(--garnet);margin-left:10px"></span>fragile
+      <span class="swatch" style="background:#999;margin-left:10px"></span>di luar truk</div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <div style="flex:3"><label style="display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="overlay"> tampilkan semua run sekaligus</label></div>
+    </div>
+    <div id="curves"></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <h2 style="flex:3;margin:0">Hasil run</h2>
+      <button id="csvRuns">CSV semua run</button>
+      <button id="csvSummary">CSV ringkasan</button>
+    </div>
+    <div class="table-wrap" style="max-height:320px"><table id="runTable"></table></div>
+    <h2 style="margin-top:18px">Ringkasan per konfigurasi</h2>
+    <div class="table-wrap"><table id="summaryTable"></table></div>
+  </section>
+</div>
+</main>
+<footer>IF3170 Inteligensi Artifisial &middot; Tugas Besar 1</footer>
+
+<script>
+"use strict";
+const LABEL = {
+  seed: "Seed", iterations: "Iterasi", generations: "Generasi", population_size: "Populasi",
+  mutation_rate: "Mutation rate", elitism: "Elitism", max_attempts: "Max attempts",
+  initial_temperature: "Suhu awal", cooling_rate: "Cooling rate", min_temperature: "Suhu minimum",
+  max_sideways_moves: "Max sideways", max_restarts: "Max restart",
+};
+const ORIENTATIONS = ["xyz", "xzy", "yxz", "yzx", "zxy", "zyx"];
+const VERTICES = [[0,0,0],[0,1,0],[1,1,0],[1,0,0],[0,0,1],[0,1,1],[1,1,1],[1,0,1]];
+const TI = [7,0,0,0,4,4,6,6,4,0,3,2], TJ = [3,4,1,2,5,6,5,2,0,1,6,3], TK = [0,7,2,3,6,7,1,1,5,5,7,6];
+const EDGES = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+
+let problem = null, defaults = null, cases = [], caseName = "custom";
+let runs = [], selected = -1, stopRequested = false;
+
+const $ = (id) => document.getElementById(id);
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function esc(text) {
+  return String(text).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function fmt(value) {
+  return Number.isInteger(value) ? String(value) : Number(value).toFixed(4).replace(/0+$/, "");
+}
+
+/* ---------- kasus ---------- */
+function setProblem(data, name) {
+  problem = JSON.parse(JSON.stringify(data));
+  caseName = name;
+  runs = []; selected = -1;
+  $("tw").value = problem.truck.dimensions.w;
+  $("tl").value = problem.truck.dimensions.l;
+  $("th").value = problem.truck.dimensions.h;
+  $("tcap").value = problem.truck.maxCapacity;
+  renderPackages();
+  renderAll();
+}
+
+function renderPackages() {
+  const head = "<tr><th>ID</th><th>w</th><th>l</th><th>h</th><th>value</th><th>berat</th><th>fragile</th><th>ETA</th><th>orientasi</th><th></th></tr>";
+  let body = "";
+  problem.packages.forEach((p, i) => {
+    let options = "";
+    for (const o of ORIENTATIONS) {
+      options += `<option${o === p.orientation ? " selected" : ""}>${o}</option>`;
+    }
+    body += `<tr>
+      <td><input class="id" data-i="${i}" data-k="id" value="${esc(p.id)}"></td>
+      <td><input type="number" min="1" data-i="${i}" data-k="w" value="${p.dimensions.w}"></td>
+      <td><input type="number" min="1" data-i="${i}" data-k="l" value="${p.dimensions.l}"></td>
+      <td><input type="number" min="1" data-i="${i}" data-k="h" value="${p.dimensions.h}"></td>
+      <td><input type="number" min="0" data-i="${i}" data-k="value" value="${p.value}"></td>
+      <td><input type="number" min="0" data-i="${i}" data-k="weight" value="${p.weight}"></td>
+      <td><input type="checkbox" data-i="${i}" data-k="isFragile"${p.isFragile ? " checked" : ""}></td>
+      <td><input type="number" min="0" data-i="${i}" data-k="ETA" value="${p.ETA}"></td>
+      <td><select data-i="${i}" data-k="orientation">${options}</select></td>
+      <td><button data-del="${i}">x</button></td></tr>`;
+  });
+  $("pkgTable").innerHTML = head + body;
+}
+
+$("pkgTable").addEventListener("input", (event) => {
+  const target = event.target;
+  if (target.dataset.k === undefined) return;
+  const p = problem.packages[Number(target.dataset.i)];
+  const key = target.dataset.k;
+  if (key === "id") p.id = target.value;
+  else if (key === "orientation") p.orientation = target.value;
+  else if (key === "isFragile") p.isFragile = target.checked;
+  else if (["w", "l", "h"].includes(key)) p.dimensions[key] = Number(target.value);
+  else p[key] = Number(target.value);
+  invalidateRuns();
+});
+$("pkgTable").addEventListener("click", (event) => {
+  if (event.target.dataset.del === undefined) return;
+  problem.packages.splice(Number(event.target.dataset.del), 1);
+  renderPackages();
+  invalidateRuns();
+});
+for (const [id, key] of [["tw", "w"], ["tl", "l"], ["th", "h"]]) {
+  $(id).addEventListener("input", () => { problem.truck.dimensions[key] = Number($(id).value); invalidateRuns(); });
+}
+$("tcap").addEventListener("input", () => { problem.truck.maxCapacity = Number($("tcap").value); invalidateRuns(); });
+
+// Kasus diubah: hasil lama tidak cocok lagi, jadi dibuang
+function invalidateRuns() {
+  runs = []; selected = -1;
+  renderAll();
+}
+
+$("addPkg").addEventListener("click", () => {
+  let n = problem.packages.length + 1;
+  const ids = new Set(problem.packages.map((p) => p.id));
+  while (ids.has("P" + n)) n++;
+  problem.packages.push({ id: "P" + n, dimensions: { w: 1, l: 1, h: 1 }, orientation: "xyz", value: 1, weight: 1, isFragile: false, ETA: 0 });
+  renderPackages();
+  invalidateRuns();
+});
+
+$("caseSelect").addEventListener("change", () => {
+  const found = cases[Number($("caseSelect").value)];
+  setProblem(found.problem, found.name);
+});
+$("uploadBtn").addEventListener("click", () => $("uploadFile").click());
+$("uploadFile").addEventListener("change", async () => {
+  const file = $("uploadFile").files[0];
+  if (!file) return;
+  try {
+    setProblem(JSON.parse(await file.text()), file.name.replace(/\.json$/, ""));
+  } catch (error) {
+    showStatus("File tidak valid: " + error.message, true);
+  }
+  $("uploadFile").value = "";
+});
+$("downloadCaseBtn").addEventListener("click", () => {
+  download(caseName + ".json", JSON.stringify(problem, null, 2), "application/json");
+});
+
+function mulberry(seed) {
+  return function () {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+$("randBtn").addEventListener("click", () => {
+  const random = mulberry(Number($("randSeed").value));
+  const pick = (low, high) => low + Math.floor(random() * (high - low + 1));
+  const dims = problem.truck.dimensions;
+  const packages = [];
+  let totalWeight = 0;
+  for (let i = 1; i <= Number($("randN").value); i++) {
+    const weight = pick(1, 10);
+    totalWeight += weight;
+    packages.push({
+      id: "P" + String(i).padStart(2, "0"),
+      dimensions: { w: pick(1, Math.ceil(dims.w / 3)), l: pick(1, Math.ceil(dims.l / 3)), h: pick(1, Math.ceil(dims.h / 2)) },
+      orientation: "xyz", value: pick(1, 50), weight, isFragile: random() < 0.2, ETA: pick(0, 3),
+    });
+  }
+  setProblem({ truck: { dimensions: dims, maxCapacity: Math.round(totalWeight * 0.6) }, packages },
+             `acak_n${packages.length}_s${$("randSeed").value}`);
+});
+
+/* ---------- parameter algoritma ---------- */
+function currentDefaults() {
+  const algo = $("algo").value;
+  return algo === "hc" ? defaults.hc[$("variant").value] : defaults[algo];
+}
+function renderParams() {
+  const algo = $("algo").value;
+  $("variantBox").hidden = algo !== "hc";
+  if (algo === "hc" && !$("variant").options.length) {
+    for (const name of Object.keys(defaults.hc)) $("variant").add(new Option(name, name));
+  }
+  let html = "";
+  for (const [key, value] of Object.entries(currentDefaults())) {
+    html += `<label>${LABEL[key] || key}</label><input data-param="${key}" value="${value}">`;
+  }
+  $("params").innerHTML = html;
+}
+$("algo").addEventListener("change", renderParams);
+$("variant").addEventListener("change", renderParams);
+
+function parseList(text) {
+  const values = text.split(",").map((s) => s.trim()).filter((s) => s !== "").map(Number);
+  if (!values.length || values.some(Number.isNaN)) throw new Error("Parameter harus angka, dipisah koma");
+  return values;
+}
+function combinations() {
+  const entries = [];
+  let seedList = null;
+  for (const input of $("params").querySelectorAll("input")) {
+    const list = parseList(input.value);
+    if (input.dataset.param === "seed") seedList = list;
+    else entries.push([input.dataset.param, list]);
+  }
+  entries.push(["seed", seedList]);
+  let out = [{}];
+  for (const [key, list] of entries) {
+    const next = [];
+    for (const base of out) {
+      for (const value of list) next.push({ ...base, [key]: value });
+    }
+    out = next;
+  }
+  return out;
+}
+
+/* ---------- menjalankan ---------- */
+function showStatus(text, isError) {
+  $("hasil").hidden = false;
+  $("status").textContent = text;
+  $("status").className = isError ? "error" : "hint";
+}
+
+$("runBtn").addEventListener("click", async () => {
+  let list;
+  try { list = combinations(); } catch (error) { showStatus(error.message, true); return; }
+  runs = []; selected = -1; stopRequested = false;
+  $("runBtn").disabled = true; $("stopBtn").disabled = false;
+  renderAll();
+  const started = performance.now();
+  for (let i = 0; i < list.length && !stopRequested; i++) {
+    const timer = setInterval(() => {
+      showStatus(`Run ${i + 1}/${list.length} berjalan... ${((performance.now() - started) / 1000).toFixed(0)} detik`);
+    }, 300);
+    try {
+      const response = await fetch("/api/run", {
+        method: "POST",
+        body: JSON.stringify({
+          problem, algorithm: $("algo").value, variant: $("algo").value === "hc" ? $("variant").value : "", config: list[i],
+          save: $("save").checked, case_name: caseName,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      data.variant = $("algo").value === "hc" ? $("variant").value : "";
+      runs.push(data);
+      if (selected < 0) selected = 0;
+      renderAll();
+    } catch (error) {
+      showStatus(error.message, true);
+      clearInterval(timer);
+      break;
+    }
+    clearInterval(timer);
+  }
+  $("runBtn").disabled = false; $("stopBtn").disabled = true;
+  if (!$("status").classList.contains("error")) {
+    showStatus(`Selesai: ${runs.length} run, ${((performance.now() - started) / 1000).toFixed(1)} detik.` +
+               (runs.length && runs[0].saved ? " Tersimpan di output/." : ""));
+  }
+});
+$("stopBtn").addEventListener("click", () => { stopRequested = true; showStatus("Berhenti setelah run ini selesai..."); });
+
+/* ---------- tampilan ---------- */
+function renderAll() {
+  renderStats();
+  renderTables();
+  draw3d();
+  drawCurves();
+}
+
+function renderStats() {
+  const run = runs[selected];
+  if (!run) { $("stats").innerHTML = ""; return; }
+  const count = run.algorithm === "ga" ? run.config.generations : run.metrics.iterations;
+  const cards = [
+    ["Value awal", fmt(run.initial_score)], ["Value akhir", fmt(run.final_score)],
+    ["Value terbaik", fmt(run.best_score)], ["Durasi", run.duration_seconds.toFixed(2) + " s"],
+    [run.algorithm === "ga" ? "Generasi" : "Iterasi", count], ["Stop", run.stop_reason],
+  ];
+  $("stats").innerHTML = cards.map(([name, value]) => `<div class="stat"><b>${esc(value)}</b><span>${name}</span></div>`).join("");
+}
+
+function configLabel(run) {
+  const parts = [];
+  for (const [key, value] of Object.entries(run.config)) {
+    if (key !== "seed" && key !== "max_attempts") parts.push(`${key}=${value}`);
+  }
+  return (run.variant ? run.variant + " " : "") + parts.join(" ");
+}
+
+function renderTables() {
+  let head = "<tr><th>#</th><th>konfigurasi</th><th>seed</th><th>awal</th><th>akhir</th><th>terbaik</th><th>durasi (s)</th><th>stop</th></tr>";
+  let body = "";
+  runs.forEach((run, i) => {
+    body += `<tr class="pick${i === selected ? " on" : ""}" data-run="${i}"><td>${i + 1}</td><td>${esc(configLabel(run))}</td>
+      <td>${run.seed}</td><td>${fmt(run.initial_score)}</td><td>${fmt(run.final_score)}</td><td>${fmt(run.best_score)}</td>
+      <td>${run.duration_seconds.toFixed(2)}</td><td>${run.stop_reason}</td></tr>`;
+  });
+  $("runTable").innerHTML = head + body;
+
+  head = "<tr><th>konfigurasi</th><th>n seed</th><th>rata2 akhir</th><th>maks akhir</th><th>rata2 terbaik</th><th>rata2 durasi (s)</th></tr>";
+  body = "";
+  for (const row of summary()) {
+    body += `<tr><td>${esc(row.label)}</td><td>${row.n}</td><td>${fmt(row.final)}</td><td>${fmt(row.finalMax)}</td>
+      <td>${fmt(row.best)}</td><td>${row.duration.toFixed(2)}</td></tr>`;
+  }
+  $("summaryTable").innerHTML = head + body;
+}
+$("runTable").addEventListener("click", (event) => {
+  const row = event.target.closest("tr[data-run]");
+  if (!row) return;
+  selected = Number(row.dataset.run);
+  renderAll();
+});
+
+function summary() {
+  const groups = new Map();
+  for (const run of runs) {
+    const label = configLabel(run);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(run);
+  }
+  const rows = [];
+  for (const [label, list] of groups) {
+    const mean = (pick) => list.reduce((sum, run) => sum + pick(run), 0) / list.length;
+    rows.push({
+      label, n: list.length, final: mean((r) => r.final_score), finalMax: Math.max(...list.map((r) => r.final_score)),
+      best: mean((r) => r.best_score), duration: mean((r) => r.duration_seconds),
+    });
+  }
+  return rows;
+}
+
+/* ---------- 3D ---------- */
+function orientedSize(pkg, orientation) {
+  const axes = {};
+  const dims = [pkg.dimensions.w, pkg.dimensions.l, pkg.dimensions.h];
+  orientation.split("").forEach((axis, i) => { axes[axis] = dims[i]; });
+  return [axes.x, axes.y, axes.z];
+}
+function boxCoords(position, size) {
+  return [0, 1, 2].map((axis) => VERTICES.map((v) => position[axis] + v[axis] * size[axis]));
+}
+function edgeTrace(boxes, color, width) {
+  const line = { x: [], y: [], z: [] };
+  for (const box of boxes) {
+    for (const [a, b] of EDGES) {
+      line.x.push(box[0][a], box[0][b], null);
+      line.y.push(box[1][a], box[1][b], null);
+      line.z.push(box[2][a], box[2][b], null);
+    }
+  }
+  return { type: "scatter3d", mode: "lines", ...line, line: { color, width }, hoverinfo: "skip", showlegend: false };
+}
+
+function draw3d() {
+  if (!problem) return;
+  const run = runs[selected];
+  const which = document.querySelector("input[name=which]:checked").value;
+  const state = run ? run[which + "_state"] : null;
+  const dims = problem.truck.dimensions;
+  const traces = [];
+  const ink = css("--ink"), line = css("--line");
+
+  traces.push({ type: "mesh3d", x: [0, dims.w, dims.w, 0], y: [0, 0, dims.l, dims.l], z: [0, 0, 0, 0],
+                i: [0, 0], j: [1, 2], k: [2, 3], color: css("--muted"), opacity: 0.12, hoverinfo: "skip", showlegend: false });
+  traces.push(edgeTrace([boxCoords([0, 0, 0], [dims.w, dims.l, dims.h])], css("--muted"), 4));
+
+  const inside = [], outside = [];
+  let outsideX = dims.w + 1;
+  problem.packages.forEach((pkg, index) => {
+    const placement = state ? state.placements[pkg.id] : { position: null, orientation: pkg.orientation };
+    const size = orientedSize(pkg, placement.orientation);
+    const isOutside = placement.position === null;
+    if (isOutside && !$("showOutside").checked) return;
+    let position = placement.position;
+    if (isOutside) { position = [outsideX, 0, 0]; outsideX += size[0] + 1; }
+    const box = boxCoords(position, size);
+    (isOutside ? outside : inside).push(box);
+    const color = isOutside ? "#999999" : pkg.isFragile ? css("--garnet") : css("--mesh");
+    const info = `${pkg.id}${isOutside ? " (luar)" : ""}<br>value ${pkg.value}, berat ${pkg.weight}${pkg.isFragile ? ", fragile" : ""}` +
+                 `<br>posisi ${placement.position ? placement.position.join(",") : "-"} &middot; ${placement.orientation} &middot; ukuran ${size.join("x")}`;
+    traces.push({ type: "mesh3d", x: box[0], y: box[1], z: box[2], i: TI, j: TJ, k: TK, color,
+                  opacity: isOutside ? 0.35 : 0.92, flatshading: true, hovertext: info, hoverinfo: "text", showlegend: false,
+                  lighting: { ambient: 0.75, diffuse: 0.6 } });
+  });
+  if (inside.length) traces.push(edgeTrace(inside, ink, 2));
+  if (outside.length) traces.push(edgeTrace(outside, "#999999", 1));
+
+  const axis = (title) => ({ title, color: ink, gridcolor: line, zerolinecolor: line, backgroundcolor: "rgba(0,0,0,0)" });
+  const score = run ? ` | value ${fmt(run[which + "_score"])}` : "";
+  Plotly.react("view3d", traces, {
+    margin: { l: 0, r: 0, t: 28, b: 0 }, paper_bgcolor: "rgba(0,0,0,0)", font: { color: ink },
+    title: { text: (run ? { initial: "Awal", final: "Akhir", best: "Terbaik" }[which] : "Pratinjau kasus") + score, font: { size: 13 } },
+    scene: { aspectmode: "data", dragmode: "turntable", camera: { up: { x: 0, y: 0, z: 1 }, eye: { x: 1.6, y: -1.6, z: 1.0 } },
+             xaxis: axis("x"), yaxis: axis("y"), zaxis: axis("z") },
+  }, { responsive: true, displaylogo: false });
+}
+document.querySelectorAll("input[name=which]").forEach((el) => el.addEventListener("change", draw3d));
+$("showOutside").addEventListener("change", draw3d);
+
+/* ---------- grafik ---------- */
+function drawCurves() {
+  const ink = css("--ink"), line = css("--line");
+  const traces = [];
+  const palette = [css("--blue"), css("--garnet"), css("--gold"), "#2a9d8f", "#8e5ea2", "#e07b39"];
+  const unit = $("algo").value === "ga" ? "Generasi" : "Iterasi";
+  const list = $("overlay").checked ? runs : (runs[selected] ? [runs[selected]] : []);
+  list.forEach((run, i) => {
+    const name = list.length > 1 ? `#${runs.indexOf(run) + 1} ${configLabel(run)} s${run.seed}` : "";
+    const color = list.length > 1 ? palette[i % palette.length] : palette[0];
+    traces.push({ y: run.objective_history, name: name || (run.algorithm === "ga" ? "Max populasi" : "Objective"),
+                  mode: "lines", line: { color, width: 2 } });
+    if (run.mean_history && list.length === 1) {
+      traces.push({ y: run.mean_history, name: "Rata-rata populasi", mode: "lines", line: { color: palette[1], width: 2 } });
+    }
+    if (run.temperature && list.length === 1) {
+      traces.push({ x: run.temperature.map((_, k) => k + 1), y: run.temperature, name: "Suhu", yaxis: "y2",
+                    mode: "lines", line: { color: palette[2], width: 1.5, dash: "dot" } });
+    }
+  });
+  Plotly.react("curves", traces, {
+    margin: { l: 52, r: 52, t: 20, b: 44 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: ink }, legend: { orientation: "h", y: -0.25 },
+    xaxis: { title: unit, gridcolor: line, color: ink }, yaxis: { title: "Objective (value)", gridcolor: line, color: ink },
+    yaxis2: { title: "Suhu", overlaying: "y", side: "right", showgrid: false, color: ink, type: "log" },
+  }, { responsive: true, displaylogo: false });
+}
+$("overlay").addEventListener("change", drawCurves);
+
+/* ---------- unduhan ---------- */
+function download(name, text, type) {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([text], { type }));
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+function csv(rows) {
+  return rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+}
+$("csvRuns").addEventListener("click", () => {
+  if (!runs.length) return;
+  const keys = Object.keys(runs[0].config);
+  const rows = [["algoritma", "varian", ...keys, "awal", "akhir", "terbaik", "durasi_s", "stop"]];
+  for (const run of runs) {
+    rows.push([run.algorithm, run.variant, ...keys.map((k) => run.config[k]), run.initial_score, run.final_score,
+               run.best_score, run.duration_seconds, run.stop_reason]);
+  }
+  download(`${caseName}_${runs[0].algorithm}_runs.csv`, csv(rows), "text/csv");
+});
+$("csvSummary").addEventListener("click", () => {
+  if (!runs.length) return;
+  const rows = [["konfigurasi", "n_seed", "rata2_akhir", "maks_akhir", "rata2_terbaik", "rata2_durasi_s"]];
+  for (const row of summary()) rows.push([row.label, row.n, row.final, row.finalMax, row.best, row.duration]);
+  download(`${caseName}_${runs[0].algorithm}_ringkasan.csv`, csv(rows), "text/csv");
+});
+$("png3d").addEventListener("click", () => Plotly.downloadImage("view3d", { format: "png", width: 1200, height: 800, scale: 2, filename: `${caseName}_3d` }));
+
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+
+/* ---------- mulai ---------- */
+(async function start() {
+  [cases, defaults] = await Promise.all([fetch("/api/cases").then((r) => r.json()), fetch("/api/defaults").then((r) => r.json())]);
+  cases.forEach((c, i) => $("caseSelect").add(new Option(c.name, i)));
+  renderParams();
+  setProblem(cases[0].problem, cases[0].name);
+})();
+</script>
+</body>
+</html>

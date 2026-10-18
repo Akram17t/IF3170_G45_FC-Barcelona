@@ -1,2 +1,1 @@
 matplotlib>=3.9,<4
-plotly>=6.6,<7
