@@ -84,8 +84,8 @@ def check_result(problem: Problem, result: RunResult):
             raise ValueError("Skor current SA tidak sesuai histori")
         if not _same(metrics["final_current_score"], history[-1]):
             raise ValueError("Metrik skor current SA tidak sesuai")
-        if not _same(result.final_score, max(history)):
-            raise ValueError("Hasil SA harus best-so-far")
+        if not _same(result.final_score, history[-1]):
+            raise ValueError("Skor akhir SA harus sesuai current terakhir")
         from .algorithms.sa import acceptance_probability
         for i, record in enumerate(records, 1):
             expected = history[i - 1] + record["delta"] if record["accepted"] else history[i - 1]

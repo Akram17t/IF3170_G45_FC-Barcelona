@@ -1,5 +1,3 @@
-"""Validator bersama berdasarkan spesifikasi IF3170 v1.4, halaman 8-9."""
-
 from itertools import combinations
 from math import fsum, isclose
 

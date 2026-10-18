@@ -29,7 +29,7 @@ def _vertices(position, size):
 
 
 def plot_state(problem, state, path, title="State"):
-    """Paket tetap di tempat; drag menggerakkan kamera bawaan Plotly."""
+    #Paket tetap di tempat; drag pake bawaan plotly
     score = objective(problem, state)
     figure = go.Figure()
     truck = _vertices((0, 0, 0), problem.truck.dimensions)
