@@ -8,7 +8,7 @@ from .algorithms.genetic import genetic_algorithm
 from .algorithms.hillclimbing import VARIANTS
 from .algorithms.sa import simulated_annealing
 from .model import Problem, load_problem
-from .results import save_result
+from .results import check_result, sa_directory, save_result
 from .visualization import render_run
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,13 +33,14 @@ def cases():
 
 
 def save_directory(body, result):
-    # ga: pop{populasi}-gen{generasi}/seed{seed}, hc: {varian}/seed{seed}, sa: seed{seed}
+    # SA dipisah per kasus, seed, dan run biar hasil eksperimen ga ketimpa
     if body["algorithm"] == "ga":
         config = result.config
         return ROOT / "output" / "ga" / f"pop{config['population_size']}-gen{config['generations']}" / f"seed{result.seed}"
     if body["algorithm"] == "hc":
         return ROOT / "output" / "hc" / body["variant"] / f"seed{result.seed}"
-    return ROOT / "output" / "sa" / f"seed{result.seed}"
+    problem = Problem.from_dict(body["problem"])
+    return sa_directory(ROOT / "output" / "sa", problem, body.get("case_name", "custom"), result.seed)
 
 
 def run(body):
@@ -58,6 +59,8 @@ def run(body):
     else:
         raise ValueError("Algoritma harus hc, sa, atau ga")
 
+    if algorithm == "sa":
+        check_result(problem, result)
     saved = None
     if body.get("save"):
         directory = save_directory(body, result)
@@ -84,6 +87,7 @@ def run(body):
         data["mean_history"] = result.metrics["mean_history"]
     if algorithm == "sa":
         data["temperature"] = [record["temperature"] for record in result.metrics["records"]]
+        data["records"] = result.metrics["records"]
     return data
 
 

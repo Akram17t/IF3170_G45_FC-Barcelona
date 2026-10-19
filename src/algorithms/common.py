@@ -13,6 +13,7 @@ DEFAULTS = {
         "iterations": 500,
         "max_attempts": 100,
     },
+    # nilai awal implementasi doang (nanti di schedule)
     "sa": {
         "seed": 0,
         "iterations": 500,

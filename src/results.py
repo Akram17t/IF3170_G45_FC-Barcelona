@@ -15,9 +15,26 @@ def problem_hash(problem):
                                     separators=(",", ":"), allow_nan=False).encode()).hexdigest()
 
 
+def sa_directory(root, problem, case_name, seed):
+    # nama kasus cuma jadi nama folder
+    name = "".join(c if c.isalnum() or c in "-_" else "_" for c in str(case_name))[:64]
+    name = name or "custom"
+    parent = Path(root) / f"{name}_{problem_hash(problem)[:12]}" / f"seed{seed}"
+    parent.mkdir(parents=True, exist_ok=True)
+    number = 1
+    while True:
+        directory = parent / f"run{number}"
+        try:
+            # mkdir ini sekalian reservasi folder kalau ada dua request bersamaan
+            directory.mkdir()
+            return directory
+        except FileExistsError:
+            number += 1
+
+
 # biar angka yang cuma beda di 10 digit belakang koma tetap dianggap sama
-def _same(a, b):
-    return math.isclose(a, b, rel_tol=1e-10, abs_tol=1e-10)
+def _same(a, b, abs_tol=1e-10):
+    return math.isclose(a, b, rel_tol=1e-10, abs_tol=abs_tol)
 
 
 # cek skor, histori, dan metrik HC/SA/GA masuk akal, kalau aneh langsung error
@@ -76,37 +93,96 @@ def check_result(problem: Problem, result: RunResult):
             if not _same(history[-1], result.final_score):
                 raise ValueError("Skor akhir HC tidak sesuai histori")
     elif result.algorithm == "sa":
+        from .algorithms.sa import acceptance_probability, temperature_schedule
+        from .neighbors import improving_neighbor_exists
+
         records = metrics["records"]
-        if len(records) != len(history) - 1 or metrics["iterations"] != len(records):
+        iterations = len(records)
+        if iterations != len(history) - 1 or metrics["iterations"] != iterations or iterations > config["iterations"]:
             raise ValueError("Histori SA tidak konsisten")
         current = State.from_dict(problem, metrics["final_current"])
-        if not _same(objective(problem, current), history[-1]):
-            raise ValueError("Skor current SA tidak sesuai histori")
+        if current != result.final_state or not _same(objective(problem, current), history[-1]):
+            raise ValueError("Current SA harus sama dengan state akhir")
         if not _same(metrics["final_current_score"], history[-1]):
             raise ValueError("Metrik skor current SA tidak sesuai")
         if not _same(result.final_score, history[-1]):
             raise ValueError("Skor akhir SA harus sesuai current terakhir")
-        from .algorithms.sa import acceptance_probability
+        stuck_history = metrics["stuck_history"]
+        if (len(stuck_history) != iterations + 1 or any(type(flag) is not bool for flag in stuck_history)
+                or type(metrics["initial_stuck"]) is not bool or metrics["initial_stuck"] != stuck_history[0]):
+            raise ValueError("Histori stuck SA tidak konsisten")
+        if (stuck_history[0] != (not improving_neighbor_exists(problem, result.initial_state))
+                or stuck_history[-1] != (not improving_neighbor_exists(problem, current))):
+            raise ValueError("Stuck SA tidak sesuai state awal/akhir")
+
         for i, record in enumerate(records, 1):
+            if type(record["accepted"]) is not bool or type(record["stuck"]) is not bool:
+                raise ValueError("Flag SA harus boolean")
+            temperature = temperature_schedule(i, config)
+            if temperature == 0 or record["temperature"] != temperature:
+                raise ValueError("Temperatur SA tidak sesuai schedule")
             expected = history[i - 1] + record["delta"] if record["accepted"] else history[i - 1]
             if record["iteration"] != i or not _same(expected, history[i]):
                 raise ValueError("Transisi SA tidak konsisten")
             if not _same(record["objective"], history[i]):
                 raise ValueError("Record SA tidak sesuai histori")
             probability = acceptance_probability(record["delta"], record["temperature"])
-            if not _same(probability, record["acceptance_probability"]):
+            # Peluang sangat kecil jangan dianggap sama dengan nol karena toleransi absolut
+            if not _same(probability, record["acceptance_probability"], abs_tol=0):
                 raise ValueError("Probabilitas SA tidak sesuai delta/T")
+            if (probability == 1 and not record["accepted"]) or (probability == 0 and record["accepted"]):
+                raise ValueError("Keputusan penerimaan SA tidak mungkin")
+            if record["stuck"] != stuck_history[i] or (not record["accepted"] and stuck_history[i] != stuck_history[i - 1]):
+                raise ValueError("Record stuck SA tidak sesuai histori")
+            if record["delta"] > 0 and stuck_history[i - 1]:
+                raise ValueError("State stuck SA tidak boleh punya kandidat lebih baik")
             log_ratio = record["delta"] / record["temperature"]
             ratio = record["exp_delta_over_t"]
-            if record["log_ratio_overflow"] != (not math.isfinite(log_ratio)):
+            if type(record["log_ratio_overflow"]) is not bool or record["log_ratio_overflow"] != (not math.isfinite(log_ratio)):
                 raise ValueError("Flag overflow log SA tidak sesuai")
-            if math.isfinite(log_ratio) and not _same(record["log_acceptance_ratio"], log_ratio):
+            if not math.isfinite(log_ratio) and record["log_acceptance_ratio"] is not None:
+                raise ValueError("Log ratio overflow SA harus null")
+            if math.isfinite(log_ratio) and not _same(record["log_acceptance_ratio"], log_ratio, abs_tol=0):
                 raise ValueError("Log ratio SA tidak sesuai")
             if log_ratio <= math.log(sys.float_info.max):
-                if ratio is None or not _same(ratio, math.exp(log_ratio)) or record["exp_overflow"]:
+                if ratio is None or not _same(ratio, math.exp(log_ratio), abs_tol=0) or record["exp_overflow"]:
                     raise ValueError("Exp SA tidak sesuai delta/T")
             elif ratio is not None or not record["exp_overflow"]:
                 raise ValueError("Overflow exp SA tidak dicatat")
+            if type(record["exp_overflow"]) is not bool:
+                raise ValueError("Flag overflow exp SA harus boolean")
+
+        counts = {
+            "iterations": iterations,
+            "accepted_moves": sum(r["accepted"] for r in records),
+            "accepted_moves_worse": sum(r["accepted"] and r["delta"] < 0 for r in records),
+            "rejected_moves": sum(not r["accepted"] for r in records),
+            "stuck_i": sum(stuck_history[1:]),
+            "stucks": int(stuck_history[0]) + sum(not a and b for a, b in zip(stuck_history, stuck_history[1:])),
+        }
+        for key, expected in counts.items():
+            if type(metrics[key]) is not int or metrics[key] != expected:
+                raise ValueError(f"Metrik {key} SA tidak konsisten")
+        frequency = counts["stuck_i"] / iterations if iterations else 0.0
+        if not _same(metrics["stuck_frequency"], frequency):
+            raise ValueError("Frekuensi stuck SA tidak konsisten")
+
+        temperature = temperature_schedule(iterations + 1, config)
+        if metrics["final_temperature"] != temperature:
+            raise ValueError("Temperatur akhir SA tidak sesuai schedule")
+        if temperature == 0:
+            stopr = "iteration_limit" if iterations == config["iterations"] else "temperature_limit"
+        else:
+            stopr = "sampling_limit" if problem.packages else "empty_problem"
+        if result.stop_reason != stopr:
+            raise ValueError("Alasan berhenti SA tidak sesuai")
+        failures = int(stopr in ("sampling_limit", "empty_problem"))
+        if type(metrics["failures_sample"]) is not int or metrics["failures_sample"] != failures:
+            raise ValueError("Jumlah sampling gagal SA tidak sesuai")
+        attempts = metrics["attempts_sample"]
+        failed_attempts = config["max_attempts"] if stopr == "sampling_limit" else 0
+        if (type(attempts) is not int or not iterations + failed_attempts <= attempts <= iterations * config["max_attempts"] + failed_attempts):
+            raise ValueError("Jumlah percobaan sampling SA tidak sesuai")
     else:
         size, generations = config["population_size"], config["generations"]
         means = metrics["mean_history"]

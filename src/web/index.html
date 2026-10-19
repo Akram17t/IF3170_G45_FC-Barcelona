@@ -38,7 +38,8 @@ header { background: linear-gradient(180deg, #6b1a2b 0%, #3d1230 50%, #0b1130 10
 h1 { margin: 4px 0 6px; font: 800 clamp(40px, 7vw, 76px)/.95 "FC Barcelona", "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .01em; }
 h1 em { font-style: normal; color: var(--gold); }
 .hero p.sub { margin: 0; max-width: 640px; opacity: .85; }
-main { display: grid; grid-template-columns: 350px 1fr; gap: 20px; padding: 24px; max-width: 1600px; margin: auto; }
+main { display: grid; grid-template-columns: 350px minmax(0, 1fr); gap: 20px; padding: 24px; max-width: 1600px; margin: auto; }
+main > * { min-width: 0; }
 @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } }
 aside { align-self: start; }
 section.card { background: var(--panel); border-radius: 20px; padding: 18px; margin-bottom: 22px; min-width: 0;
@@ -71,12 +72,12 @@ td input.id { min-width: 52px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
 .stat { background: var(--soft); border-radius: 4px; padding: 10px 12px; border-left: 4px solid var(--blue); }
 .stat:nth-child(even) { border-left-color: var(--garnet); }
-.stat b { display: block; font: 700 32px/1.1 "FC Barcelona", "Barlow Condensed", sans-serif; }
+.stat b { display: block; font: 700 32px/1.1 "FC Barcelona", "Barlow Condensed", sans-serif; overflow-wrap: anywhere; }
 .stat span { font: 600 12px "FC Barcelona", "Barlow Condensed", sans-serif; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
 #status { min-height: 20px; margin: 0 0 10px; }
 #status.error { color: var(--bad); font-weight: 600; }
 #view3d { width: 100%; height: 540px; }
-#curves { width: 100%; height: 340px; }
+#curves, #saCurves { width: 100%; height: 340px; }
 .tabs label { display: inline-flex; align-items: center; gap: 5px; margin: 0 14px 0 0; color: var(--ink); font-size: 13px; font-weight: 600; }
 tr.pick { cursor: pointer; }
 tr.pick:hover td { background: var(--soft); }
@@ -134,6 +135,8 @@ footer { padding: 20px 24px 32px; text-align: center; font: 600 13px "FC Barcelo
     </select>
     <div id="variantBox" hidden><label>Varian</label><select id="variant"></select></div>
     <div id="params"></div>
+    <div id="saHint" class="hint" hidden>Suhu memakai T awal * cooling rate^(iterasi−1). Nilai default adalah pilihan implementasi.
+      Seed menentukan urutan acak yang bisa diulang, bukan jumlah thread. Cooling rate 1 mempertahankan suhu tetap sampai batas iterasi.</div>
     <div class="hint">Isi beberapa nilai dengan koma (misal <code>20,40,80</code>) untuk eksperimen. Semua kombinasi dijalankan berurutan.</div>
     <label style="margin-top:10px"><input type="checkbox" id="save" checked> Simpan result.json dan grafik PNG ke output/</label>
     <div class="row" style="margin-top:10px">
@@ -172,6 +175,15 @@ footer { padding: 20px 24px 32px; text-align: center; font: 600 13px "FC Barcelo
     <div id="curves"></div>
   </section>
 
+  <section class="card" id="saPanel" hidden>
+    <h2>SA: exp(delta/T)</h2>
+    <div id="saCurves"></div>
+    <div class="hint">Grafik dibatasi 1e6 agar tetap terbaca. Hover menampilkan nilai mentah dan probabilitas penerimaan.
+      exp(delta/T) bisa lebih dari 1; kandidat lebih baik tetap langsung diterima dengan probabilitas 1.</div>
+    <div class="hint">Stuck berarti tidak ada neighbor valid dengan objective lebih tinggi, termasuk plateau dan optimum global.
+      Episode awal ikut dihitung; persentase memakai kondisi sesudah tiap iterasi, tanpa initial state.</div>
+  </section>
+
   <section class="card">
     <div class="row">
       <h2 style="flex:3;margin:0">Hasil run</h2>
@@ -200,7 +212,8 @@ const TI = [7,0,0,0,4,4,6,6,4,0,3,2], TJ = [3,4,1,2,5,6,5,2,0,1,6,3], TK = [0,7,
 const EDGES = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
 
 let problem = null, defaults = null, cases = [], caseName = "custom";
-let runs = [], selected = -1, stopRequested = false;
+let runs = [], selected = -1, stopRequested = false, running = false;
+let lockedInputs = [];
 
 const $ = (id) => document.getElementById(id);
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -213,6 +226,7 @@ function fmt(value) {
 
 /* ---------- kasus ---------- */
 function setProblem(data, name) {
+  if (running) return;
   problem = JSON.parse(JSON.stringify(data));
   caseName = name;
   runs = []; selected = -1;
@@ -339,6 +353,7 @@ function currentDefaults() {
 function renderParams() {
   const algo = $("algo").value;
   $("variantBox").hidden = algo !== "hc";
+  $("saHint").hidden = algo !== "sa";
   if (algo === "hc" && !$("variant").options.length) {
     for (const name of Object.keys(defaults.hc)) $("variant").add(new Option(name, name));
   }
@@ -353,7 +368,7 @@ $("variant").addEventListener("change", renderParams);
 
 function parseList(text) {
   const values = text.split(",").map((s) => s.trim()).filter((s) => s !== "").map(Number);
-  if (!values.length || values.some(Number.isNaN)) throw new Error("Parameter harus angka, dipisah koma");
+  if (!values.length || values.some((value) => !Number.isFinite(value))) throw new Error("Parameter harus angka hingga, dipisah koma");
   return values;
 }
 function combinations() {
@@ -383,42 +398,59 @@ function showStatus(text, isError) {
   $("status").className = isError ? "error" : "hint";
 }
 
+function setRunning(active) {
+  running = active;
+  if (active) {
+    lockedInputs = [...document.querySelectorAll("aside input, aside select, aside button")].map((input) => [input, input.disabled]);
+    for (const [input] of lockedInputs) input.disabled = true;
+  } else {
+    for (const [input, disabled] of lockedInputs) input.disabled = disabled;
+    lockedInputs = [];
+  }
+  $("runBtn").disabled = active;
+  $("stopBtn").disabled = !active;
+}
+
 $("runBtn").addEventListener("click", async () => {
+  if (running) return;
   let list;
   try { list = combinations(); } catch (error) { showStatus(error.message, true); return; }
+  // Semua request dalam batch memakai kasus dan pilihan yang sama
+  const batch = {
+    problem: JSON.parse(JSON.stringify(problem)), algorithm: $("algo").value,
+    variant: $("algo").value === "hc" ? $("variant").value : "",
+    save: $("save").checked, case_name: caseName,
+  };
   runs = []; selected = -1; stopRequested = false;
-  $("runBtn").disabled = true; $("stopBtn").disabled = false;
-  renderAll();
+  setRunning(true);
   const started = performance.now();
-  for (let i = 0; i < list.length && !stopRequested; i++) {
-    const timer = setInterval(() => {
-      showStatus(`Run ${i + 1}/${list.length} berjalan... ${((performance.now() - started) / 1000).toFixed(0)} detik`);
-    }, 300);
-    try {
-      const response = await fetch("/api/run", {
-        method: "POST",
-        body: JSON.stringify({
-          problem, algorithm: $("algo").value, variant: $("algo").value === "hc" ? $("variant").value : "", config: list[i],
-          save: $("save").checked, case_name: caseName,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      data.variant = $("algo").value === "hc" ? $("variant").value : "";
-      runs.push(data);
-      if (selected < 0) selected = 0;
-      renderAll();
-    } catch (error) {
-      showStatus(error.message, true);
-      clearInterval(timer);
-      break;
+  let timer;
+  try {
+    renderAll();
+    for (let i = 0; i < list.length && !stopRequested; i++) {
+      const progress = () => showStatus(`Run ${i + 1}/${list.length} berjalan... ${((performance.now() - started) / 1000).toFixed(0)} detik` +
+                                      (stopRequested ? " Berhenti setelah run ini selesai..." : ""));
+      progress();
+      timer = setInterval(progress, 300);
+      try {
+        const response = await fetch("/api/run", { method: "POST", body: JSON.stringify({ ...batch, config: list[i] }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        data.variant = batch.variant;
+        runs.push(data);
+        if (selected < 0) selected = 0;
+        renderAll();
+      } finally {
+        clearInterval(timer);
+      }
     }
-    clearInterval(timer);
-  }
-  $("runBtn").disabled = false; $("stopBtn").disabled = true;
-  if (!$("status").classList.contains("error")) {
-    showStatus(`Selesai: ${runs.length} run, ${((performance.now() - started) / 1000).toFixed(1)} detik.` +
+    showStatus(`${stopRequested ? "Dihentikan" : "Selesai"}: ${runs.length}/${list.length} run, ${((performance.now() - started) / 1000).toFixed(1)} detik.` +
                (runs.length && runs[0].saved ? " Tersimpan di output/." : ""));
+  } catch (error) {
+    showStatus(error.message, true);
+  } finally {
+    clearInterval(timer);
+    setRunning(false);
   }
 });
 $("stopBtn").addEventListener("click", () => { stopRequested = true; showStatus("Berhenti setelah run ini selesai..."); });
@@ -440,32 +472,46 @@ function renderStats() {
     ["Value terbaik", fmt(run.best_score)], ["Durasi", run.duration_seconds.toFixed(2) + " s"],
     [run.algorithm === "ga" ? "Generasi" : "Iterasi", count], ["Stop", run.stop_reason],
   ];
+  if (run.algorithm === "sa") {
+    cards.push(["Episode stuck", run.metrics.stucks], ["Iterasi stuck", run.metrics.stuck_i],
+               ["Persentase stuck", (run.metrics.stuck_frequency * 100).toFixed(2) + "%"],
+               ["Move memburuk diterima", run.metrics.accepted_moves_worse]);
+  }
   $("stats").innerHTML = cards.map(([name, value]) => `<div class="stat"><b>${esc(value)}</b><span>${name}</span></div>`).join("");
 }
 
 function configLabel(run) {
   const parts = [];
-  for (const [key, value] of Object.entries(run.config)) {
-    if (key !== "seed" && key !== "max_attempts") parts.push(`${key}=${value}`);
+  for (const [key, value] of Object.entries(run.config).sort(([a], [b]) => a.localeCompare(b))) {
+    if (key !== "seed") parts.push(`${key}=${value}`);
   }
-  return (run.variant ? run.variant + " " : "") + parts.join(" ");
+  return (run.variant || run.algorithm.toUpperCase()) + " " + parts.join(" ");
 }
 
 function renderTables() {
-  let head = "<tr><th>#</th><th>konfigurasi</th><th>seed</th><th>awal</th><th>akhir</th><th>terbaik</th><th>durasi (s)</th><th>stop</th></tr>";
+  const hasSA = runs.some((run) => run.algorithm === "sa");
+  const saHead = hasSA ? "<th>episode stuck</th><th>iterasi stuck</th><th>stuck (%)</th><th>memburuk diterima</th>" : "";
+  let head = "<tr><th>#</th><th>konfigurasi</th><th>seed</th><th>awal</th><th>akhir</th><th>terbaik</th><th>durasi (s)</th><th>stop</th>" + saHead + "</tr>";
   let body = "";
   runs.forEach((run, i) => {
     body += `<tr class="pick${i === selected ? " on" : ""}" data-run="${i}"><td>${i + 1}</td><td>${esc(configLabel(run))}</td>
       <td>${run.seed}</td><td>${fmt(run.initial_score)}</td><td>${fmt(run.final_score)}</td><td>${fmt(run.best_score)}</td>
-      <td>${run.duration_seconds.toFixed(2)}</td><td>${run.stop_reason}</td></tr>`;
+      <td>${run.duration_seconds.toFixed(2)}</td><td>${run.stop_reason}</td>`;
+    if (hasSA) body += run.algorithm === "sa" ? `<td>${run.metrics.stucks}</td><td>${run.metrics.stuck_i}</td>
+      <td>${(run.metrics.stuck_frequency * 100).toFixed(2)}</td><td>${run.metrics.accepted_moves_worse}</td>` : "<td>-</td>".repeat(4);
+    body += "</tr>";
   });
   $("runTable").innerHTML = head + body;
 
-  head = "<tr><th>konfigurasi</th><th>n seed</th><th>rata2 akhir</th><th>maks akhir</th><th>rata2 terbaik</th><th>rata2 durasi (s)</th></tr>";
+  head = "<tr><th>konfigurasi</th><th>n run</th><th>rata2 akhir</th><th>maks akhir</th><th>rata2 terbaik</th><th>rata2 durasi (s)</th>" +
+         (hasSA ? "<th>rata2 episode stuck</th><th>rata2 iterasi stuck</th><th>rata2 stuck (%)</th><th>rata2 memburuk diterima</th>" : "") + "</tr>";
   body = "";
   for (const row of summary()) {
     body += `<tr><td>${esc(row.label)}</td><td>${row.n}</td><td>${fmt(row.final)}</td><td>${fmt(row.finalMax)}</td>
-      <td>${fmt(row.best)}</td><td>${row.duration.toFixed(2)}</td></tr>`;
+      <td>${fmt(row.best)}</td><td>${row.duration.toFixed(2)}</td>`;
+    if (hasSA) body += row.algorithm === "sa" ? `<td>${fmt(row.stucks)}</td><td>${fmt(row.stuck_i)}</td>
+      <td>${(row.stuck_frequency * 100).toFixed(2)}</td><td>${fmt(row.accepted_moves_worse)}</td>` : "<td>-</td>".repeat(4);
+    body += "</tr>";
   }
   $("summaryTable").innerHTML = head + body;
 }
@@ -486,10 +532,14 @@ function summary() {
   const rows = [];
   for (const [label, list] of groups) {
     const mean = (pick) => list.reduce((sum, run) => sum + pick(run), 0) / list.length;
-    rows.push({
-      label, n: list.length, final: mean((r) => r.final_score), finalMax: Math.max(...list.map((r) => r.final_score)),
+    const row = {
+      label, algorithm: list[0].algorithm, n: list.length, final: mean((r) => r.final_score), finalMax: Math.max(...list.map((r) => r.final_score)),
       best: mean((r) => r.best_score), duration: mean((r) => r.duration_seconds),
-    });
+    };
+    if (row.algorithm === "sa") {
+      for (const key of ["stucks", "stuck_i", "stuck_frequency", "accepted_moves_worse"]) row[key] = mean((r) => r.metrics[key]);
+    }
+    rows.push(row);
   }
   return rows;
 }
@@ -567,7 +617,7 @@ function drawCurves() {
   const ink = css("--ink"), line = css("--line");
   const traces = [];
   const palette = [css("--blue"), css("--garnet"), css("--gold"), "#2a9d8f", "#8e5ea2", "#e07b39"];
-  const unit = $("algo").value === "ga" ? "Generasi" : "Iterasi";
+  const unit = runs[selected]?.algorithm === "ga" ? "Generasi" : "Iterasi";
   const list = $("overlay").checked ? runs : (runs[selected] ? [runs[selected]] : []);
   list.forEach((run, i) => {
     const name = list.length > 1 ? `#${runs.indexOf(run) + 1} ${configLabel(run)} s${run.seed}` : "";
@@ -588,6 +638,28 @@ function drawCurves() {
     xaxis: { title: unit, gridcolor: line, color: ink }, yaxis: { title: "Objective (value)", gridcolor: line, color: ink },
     yaxis2: { title: "Suhu", overlaying: "y", side: "right", showgrid: false, color: ink, type: "log" },
   }, { responsive: true, displaylogo: false });
+
+  const saRuns = list.filter((run) => run.algorithm === "sa");
+  $("saPanel").hidden = !saRuns.length;
+  if (!saRuns.length) return;
+  const exponential = [];
+  saRuns.forEach((run, i) => {
+    const records = run.records;
+    exponential.push({
+      x: records.map((r) => r.iteration),
+      y: records.map((r) => r.exp_overflow ? 1e6 : Math.min(1e6, r.exp_delta_over_t)),
+      customdata: records.map((r) => [r.exp_overflow ? "overflow" : String(r.exp_delta_over_t), r.acceptance_probability, r.accepted ? "ya" : "tidak"]),
+      name: `#${runs.indexOf(run) + 1} seed=${run.seed}`, mode: "lines+markers",
+      line: { color: palette[i % palette.length], width: 2 }, marker: { size: 3 },
+      hovertemplate: "Iterasi %{x}<br>exp(delta/T) mentah: %{customdata[0]}<br>Probabilitas: %{customdata[1]}<br>Diterima: %{customdata[2]}<extra>%{fullData.name}</extra>",
+    });
+  });
+  Plotly.react("saCurves", exponential, {
+    margin: { l: 66, r: 24, t: 20, b: 44 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: ink }, legend: { orientation: "h", y: -0.25 },
+    xaxis: { title: "Iterasi", gridcolor: line, color: ink },
+    yaxis: { title: "exp(delta/T), dibatasi 1e6", gridcolor: line, color: ink },
+  }, { responsive: true, displaylogo: false });
 }
 $("overlay").addEventListener("change", drawCurves);
 
@@ -605,17 +677,19 @@ function csv(rows) {
 $("csvRuns").addEventListener("click", () => {
   if (!runs.length) return;
   const keys = Object.keys(runs[0].config);
-  const rows = [["algoritma", "varian", ...keys, "awal", "akhir", "terbaik", "durasi_s", "stop"]];
+  const saKeys = runs[0].algorithm === "sa" ? ["stucks", "stuck_i", "stuck_frequency", "accepted_moves_worse"] : [];
+  const rows = [["algoritma", "varian", ...keys, "awal", "akhir", "terbaik", "durasi_s", "stop", ...saKeys]];
   for (const run of runs) {
     rows.push([run.algorithm, run.variant, ...keys.map((k) => run.config[k]), run.initial_score, run.final_score,
-               run.best_score, run.duration_seconds, run.stop_reason]);
+               run.best_score, run.duration_seconds, run.stop_reason, ...saKeys.map((k) => run.metrics[k])]);
   }
   download(`${caseName}_${runs[0].algorithm}_runs.csv`, csv(rows), "text/csv");
 });
 $("csvSummary").addEventListener("click", () => {
   if (!runs.length) return;
-  const rows = [["konfigurasi", "n_seed", "rata2_akhir", "maks_akhir", "rata2_terbaik", "rata2_durasi_s"]];
-  for (const row of summary()) rows.push([row.label, row.n, row.final, row.finalMax, row.best, row.duration]);
+  const saKeys = runs[0].algorithm === "sa" ? ["stucks", "stuck_i", "stuck_frequency", "accepted_moves_worse"] : [];
+  const rows = [["konfigurasi", "n_run", "rata2_akhir", "maks_akhir", "rata2_terbaik", "rata2_durasi_s", ...saKeys.map((k) => "rata2_" + k)]];
+  for (const row of summary()) rows.push([row.label, row.n, row.final, row.finalMax, row.best, row.duration, ...saKeys.map((k) => row[k])]);
   download(`${caseName}_${runs[0].algorithm}_ringkasan.csv`, csv(rows), "text/csv");
 });
 $("png3d").addEventListener("click", () => Plotly.downloadImage("view3d", { format: "png", width: 1200, height: 800, scale: 2, filename: `${caseName}_3d` }));

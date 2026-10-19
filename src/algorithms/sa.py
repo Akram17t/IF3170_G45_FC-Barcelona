@@ -62,7 +62,8 @@ def simulated_annealing(problem, config=None, initial=None):
         accepted_moves_worse = 0 #jelek tp probsnya masi masuk
         attempts_sample = 0
         failures_sample = 0 
-        stuck = not improving_neighbor_exists(problem, current) #masih sama
+        # Stuck di sini juga plateau and global optimum
+        stuck = not improving_neighbor_exists(problem, current)
         stuck_history = [stuck]
         stucks = int(stuck)
         stuck_i = 0
@@ -165,7 +166,7 @@ def main():
         import argparse
         from pathlib import Path
         from ..model import load_problem
-        from ..results import save_result
+        from ..results import sa_directory, save_result
         from ..visualization import render_run
 
         root = Path(__file__).resolve().parents[2]
@@ -188,8 +189,7 @@ def main():
         result = simulated_annealing(problem, options)
 
         #Simpen hasil dan bikin visualisasi setelah pencarian, biar ga masuk durasi run
-        directory = args.output / f"{args.input.stem}_seed{args.seed}"
-        directory.mkdir(parents=True, exist_ok=True)
+        directory = sa_directory(args.output, problem, args.input.stem, args.seed)
         save_result(directory / "result.json", problem, result, args.input.stem)
         render_run(problem, result, directory, args.input.stem)
 
