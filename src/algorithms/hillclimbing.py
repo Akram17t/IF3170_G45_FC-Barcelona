@@ -51,7 +51,7 @@ def steepest_ascent(problem, config=None, initial=None):
 
 
 def sideways(problem, config=None, initial=None):
-    # Skor sama boleh diterima, tapi jumlah sideways berturut2 dibatesin
+    # Skor sama boleh diterima, tapi total gerakan sideways dibatesin
     started = perf_counter()
     config = configuration("hc", {} if config is None else config, "sideways")
     rng = Random(config["seed"])
@@ -82,7 +82,7 @@ def sideways(problem, config=None, initial=None):
         current, score = neighbor, neighbor_score
         accepted_moves += 1
         history.append(score)
-        if consecutive_sideways > 0 and consecutive_sideways >= config["max_sideways_moves"]:
+        if sideways_moves > 0 and sideways_moves >= config["max_sideways_moves"]:
             stop_reason = "sideways_limit"
             break
 
