@@ -225,9 +225,27 @@ function fmt(value) {
 }
 
 /* ---------- kasus ---------- */
+function orientationCode(value) {
+  let code = value;
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const sides = ["w", "l", "h"];
+    if (Object.keys(value).length !== 3 || !sides.every((side) =>
+      Object.hasOwn(value, side) && ["x", "y", "z"].includes(value[side]))) {
+      throw new Error("Orientasi harus memetakan w, l, h ke masing-masing sumbu x, y, z");
+    }
+    code = sides.map((side) => value[side]).join("");
+  }
+  if (!ORIENTATIONS.includes(code)) {
+    throw new Error("Orientasi harus salah satu dari xyz, xzy, yxz, yzx, zxy, zyx");
+  }
+  return code;
+}
+
 function setProblem(data, name) {
   if (running) return;
-  problem = JSON.parse(JSON.stringify(data));
+  const next = JSON.parse(JSON.stringify(data));
+  for (const pkg of next.packages) pkg.orientation = orientationCode(pkg.orientation);
+  problem = next;
   caseName = name;
   runs = []; selected = -1;
   $("tw").value = problem.truck.dimensions.w;
@@ -548,7 +566,7 @@ function summary() {
 function orientedSize(pkg, orientation) {
   const axes = {};
   const dims = [pkg.dimensions.w, pkg.dimensions.l, pkg.dimensions.h];
-  orientation.split("").forEach((axis, i) => { axes[axis] = dims[i]; });
+  orientationCode(orientation).split("").forEach((axis, i) => { axes[axis] = dims[i]; });
   return [axes.x, axes.y, axes.z];
 }
 function boxCoords(position, size) {
@@ -592,7 +610,7 @@ function draw3d() {
     (isOutside ? outside : inside).push(box);
     const color = isOutside ? "#999999" : pkg.isFragile ? css("--garnet") : css("--mesh");
     const info = `${pkg.id}${isOutside ? " (luar)" : ""}<br>value ${pkg.value}, berat ${pkg.weight}${pkg.isFragile ? ", fragile" : ""}` +
-                 `<br>posisi ${placement.position ? placement.position.join(",") : "-"} &middot; ${placement.orientation} &middot; ukuran ${size.join("x")}`;
+                 `<br>posisi ${placement.position ? placement.position.join(",") : "-"} &middot; ${orientationCode(placement.orientation)} &middot; ukuran ${size.join("x")}`;
     traces.push({ type: "mesh3d", x: box[0], y: box[1], z: box[2], i: TI, j: TJ, k: TK, color,
                   opacity: isOutside ? 0.35 : 0.92, flatshading: true, hovertext: info, hoverinfo: "text", showlegend: false,
                   lighting: { ambient: 0.75, diffuse: 0.6 } });
