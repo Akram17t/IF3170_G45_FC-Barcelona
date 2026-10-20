@@ -119,7 +119,7 @@ def check_result(problem: Problem, result: RunResult):
             if type(record["accepted"]) is not bool or type(record["stuck"]) is not bool:
                 raise ValueError("Flag SA harus boolean")
             temperature = temperature_schedule(i, config)
-            if temperature == 0 or record["temperature"] != temperature:
+            if temperature == 0 or not _same(record["temperature"], temperature, abs_tol=0):
                 raise ValueError("Temperatur SA tidak sesuai schedule")
             expected = history[i - 1] + record["delta"] if record["accepted"] else history[i - 1]
             if record["iteration"] != i or not _same(expected, history[i]):
@@ -168,7 +168,7 @@ def check_result(problem: Problem, result: RunResult):
             raise ValueError("Frekuensi stuck SA tidak konsisten")
 
         temperature = temperature_schedule(iterations + 1, config)
-        if metrics["final_temperature"] != temperature:
+        if not _same(metrics["final_temperature"], temperature, abs_tol=0):
             raise ValueError("Temperatur akhir SA tidak sesuai schedule")
         if temperature == 0:
             stopr = "iteration_limit" if iterations == config["iterations"] else "temperature_limit"

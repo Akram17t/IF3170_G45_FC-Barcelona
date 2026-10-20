@@ -129,14 +129,21 @@ Validitas data input berbeda dari kelayakan suatu susunan. Contohnya, paket yang
 
 ## Fungsi objektif dan penggunaan ETA
 
-Fungsi objektif menjumlahkan `value` seluruh paket yang berada di dalam truk. Paket di luar truk tidak dihitung. Batasan susunan diperiksa oleh `src/validation.py` sebelum nilainya digunakan.
+Program menyediakan dua pilihan fungsi objektif. Keduanya menjumlahkan kontribusi paket yang berada di dalam truk. Paket di luar truk tidak dihitung. Batasan susunan diperiksa oleh `src/validation.py` sebelum nilainya digunakan.
 
-`ETA` tetap wajib dibaca, divalidasi, dan disimpan bersama data paket. ETA tidak dipakai untuk memilih langkah pencarian atau menghitung nilai karena tujuan dasar tugas adalah memaksimalkan nilai muatan, sementara spesifikasi tidak menetapkan prioritas, tenggat pengiriman, atau aturan penempatan berdasarkan ETA. Karena itu, program tidak menambahkan bobot atau batasan ETA yang belum didefinisikan dalam persoalan.
+| Mode | Kontribusi setiap paket | Tujuan |
+|---|---|---|
+| `value` | `value` | Memaksimalkan total nilai muatan sesuai tujuan dasar tugas |
+| `eta` | `value / (1 + ETA / 2)` | Memaksimalkan nilai muatan dengan bobot urgensi pengiriman sebagai fitur bonus |
 
-## Pengujian
+Mode `value` digunakan secara bawaan dan tidak memakai ETA dalam perhitungan skor. Pada mode bonus `eta`, paket dengan ETA lebih kecil memberikan kontribusi lebih besar untuk nilai paket yang sama. Sebagai contoh, paket bernilai 100 dengan ETA 0 menyumbang skor 100, sedangkan paket bernilai sama dengan ETA 2 menyumbang skor 50. Pembobotan ini merupakan pilihan fungsi objektif kelompok, bukan batasan tenggat pengiriman dari spesifikasi.
 
-Jalankan pengujian model dari folder utama proyek:
+`ETA` tetap wajib dibaca, divalidasi, dan disimpan pada kedua mode. Pilihan fungsi objektif berlaku untuk HC, SA, dan GA tanpa mengubah aturan kelayakan susunan. Pilih mode melalui menu **Objective** pada antarmuka web. Hasil mode bonus yang disimpan melalui web berada di `output/bonus_eta/`.
 
-```bash
-python -m unittest discover -s tests
-```
+## Pembagian tugas
+
+| Nama | NIM | Tugas |
+|---|---|---|
+| Nashiruddin Akram | 13524090 | Representasi data dan validasi susunan paket, implementasi empat varian Hill Climbing, dokumentasi penggunaan, dan pengerjaan laporan |
+| Reinsen Silitonga | 13524093 | Implementasi Genetic Algorithm, format hasil pencarian, visualisasi, fungsi objektif bonus ETA, pencatatan hasil eksperimen, dan pengerjaan laporan |
+| Arghawisesa Dwinanda Arham | 13524100 | Inisialisasi state acak, operasi dan pembangkitan tetangga, implementasi Simulated Annealing, konfigurasi parameter dan validasi hasil SA, penyempurnaan antarmuka web, dan pengerjaan laporan |

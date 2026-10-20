@@ -1,3 +1,4 @@
+from math import ceil, floor, isfinite, log10
 from pathlib import Path
 
 import matplotlib
@@ -30,15 +31,40 @@ def plot_curves(result, directory):
     figure.savefig(Path(directory) / "objective.png", bbox_inches="tight")
     plt.close(figure)
     if result.algorithm == "sa":
-        records = result.metrics["records"]
-        # e^(dE/T) >= 1 berarti move membaik (selalu diterima), jadi dibatasi 1 biar peluang move buruk kelihatan
-        ratios = [min(1.0, r["exp_delta_over_t"]) if r["exp_delta_over_t"] is not None else 1.0
-                  for r in records]
-        figure, axis = plt.subplots()
-        axis.plot([r["iteration"] for r in records], ratios, color=PALETTE[3], marker=".", markersize=3, linewidth=0.5)
-        axis.set(xlabel="Iterasi", ylabel="min(1, exp(delta/T))", ylim=(-0.05, 1.05))
-        figure.savefig(Path(directory) / "acceptance.png", bbox_inches="tight")
-        plt.close(figure)
+        plot_sa_exponential(result, directory)
+
+
+def plot_sa_exponential(result, directory):
+    records = result.metrics["records"]
+    # Plot nilai eksponensial mentah. Symlog mempertahankan nol dan merangkum rentang nilai besar.
+    ratios = [r["exp_delta_over_t"] if r["exp_delta_over_t"] is not None else float("nan")
+              for r in records]
+    figure, axis = plt.subplots()
+    axis.set_autoscaley_on(False)
+    axis.plot([r["iteration"] for r in records], ratios, color=PALETTE[3], marker=".", markersize=3, linewidth=0.5)
+    axis.set_yscale("symlog", linthresh=1)
+    maximum = max((ratio for ratio in ratios if isfinite(ratio)), default=1.0)
+    upper = max(1.1, maximum * 10 if maximum > 1 else maximum + 0.1)
+    if not isfinite(upper):
+        upper = maximum
+    axis.set(xlabel="Iterasi", ylabel="exp(delta/T), skala symlog",
+             ylim=(0, upper))
+    # Batasi jumlah label tanpa memangkas data atau menghasilkan tick di luar batas float.
+    highest_power = max(0, floor(log10(upper)))
+    step = max(1, ceil(highest_power / 6))
+    powers = sorted(set(range(0, highest_power + 1, step)) | {highest_power})
+    # Pada rentang sangat besar, label 0 dan 1 terlalu berdekatan.
+    axis.set_yticks([0, *(10.0 ** power for power in powers if power > 0 or highest_power < 15)])
+    axis.minorticks_off()
+    overflow_iterations = [r["iteration"] for r in records if r["exp_overflow"]]
+    if overflow_iterations:
+        # Posisi marker memakai tinggi relatif grafik, bukan nilai eksponensial pengganti.
+        axis.scatter(overflow_iterations, [0.97] * len(overflow_iterations),
+                     transform=axis.get_xaxis_transform(), marker="^", color=PALETTE[1],
+                     label="Overflow: nilai melampaui batas angka")
+        axis.legend()
+    figure.savefig(Path(directory) / "acceptance.png", bbox_inches="tight")
+    plt.close(figure)
 
 
 def box_faces(x, y, z, w, l, h):
