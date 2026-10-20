@@ -13,7 +13,7 @@ from .validation import objective
 PALETTE = ["#004D98", "#A50044", "#EDBB00", "#DB0030", "#FFED02"]
 
 
-def plot_curves(result, directory, title):
+def plot_curves(result, directory):
     figure, axis = plt.subplots()
     if result.algorithm == "hc" and result.metrics.get("variant") == "random_restart":
         # Tiap restart diplot sendiri biar iterasinya ga kecampur
@@ -25,7 +25,7 @@ def plot_curves(result, directory, title):
                   label="Max populasi" if result.algorithm == "ga" else "Value")
     if result.algorithm == "ga":
         axis.plot(result.metrics["mean_history"], color=PALETTE[1], label="Rata-rata populasi")
-    axis.set(title=title, xlabel="Generasi" if result.algorithm == "ga" else "Iterasi", ylabel="Objective")
+    axis.set(xlabel="Generasi" if result.algorithm == "ga" else "Iterasi", ylabel="Objective")
     axis.legend()
     figure.savefig(Path(directory) / "objective.png", bbox_inches="tight")
     plt.close(figure)
@@ -36,7 +36,7 @@ def plot_curves(result, directory, title):
                   for r in records]
         figure, axis = plt.subplots()
         axis.plot([r["iteration"] for r in records], ratios, color=PALETTE[3], marker=".", markersize=3, linewidth=0.5)
-        axis.set(title=title, xlabel="Iterasi", ylabel="min(1, exp(delta/T))", ylim=(-0.05, 1.05))
+        axis.set(xlabel="Iterasi", ylabel="min(1, exp(delta/T))", ylim=(-0.05, 1.05))
         figure.savefig(Path(directory) / "acceptance.png", bbox_inches="tight")
         plt.close(figure)
 
@@ -141,9 +141,8 @@ def plot_top(problem, state, path):
 def render_run(problem, result, directory, case_name):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    algorithm = result.metrics.get("variant", result.algorithm.upper())
-    title = f"{case_name} | {algorithm} | seed={result.seed}"
-    plot_curves(result, directory, title)
+    # Kasus, algoritma, dan seed ada di nama folder dan result.json, jadi ga ditulis di gambar
+    plot_curves(result, directory)
     for label, state in (("awal", result.initial_state), ("akhir", result.final_state)):
         plot_state(problem, state, directory / f"{label}.png")
         plot_top(problem, state, directory / f"{label}_atas.png")

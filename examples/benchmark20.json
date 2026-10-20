@@ -1,0 +1,272 @@
+{
+  "truck": {
+    "dimensions": {
+      "w": 10,
+      "l": 20,
+      "h": 5
+    },
+    "maxCapacity": 65
+  },
+  "packages": [
+    {
+      "id": "P01",
+      "dimensions": {
+        "w": 1,
+        "l": 6,
+        "h": 4
+      },
+      "orientation": "xyz",
+      "value": 49,
+      "weight": 7,
+      "isFragile": false,
+      "ETA": 2
+    },
+    {
+      "id": "P02",
+      "dimensions": {
+        "w": 3,
+        "l": 10,
+        "h": 2
+      },
+      "orientation": "xyz",
+      "value": 25,
+      "weight": 8,
+      "isFragile": true,
+      "ETA": 1
+    },
+    {
+      "id": "P03",
+      "dimensions": {
+        "w": 1,
+        "l": 5,
+        "h": 1
+      },
+      "orientation": "xyz",
+      "value": 20,
+      "weight": 3,
+      "isFragile": false,
+      "ETA": 1
+    },
+    {
+      "id": "P04",
+      "dimensions": {
+        "w": 1,
+        "l": 5,
+        "h": 3
+      },
+      "orientation": "xyz",
+      "value": 40,
+      "weight": 2,
+      "isFragile": false,
+      "ETA": 0
+    },
+    {
+      "id": "P05",
+      "dimensions": {
+        "w": 4,
+        "l": 8,
+        "h": 1
+      },
+      "orientation": "xyz",
+      "value": 37,
+      "weight": 7,
+      "isFragile": false,
+      "ETA": 3
+    },
+    {
+      "id": "P06",
+      "dimensions": {
+        "w": 2,
+        "l": 8,
+        "h": 1
+      },
+      "orientation": "xyz",
+      "value": 17,
+      "weight": 10,
+      "isFragile": false,
+      "ETA": 0
+    },
+    {
+      "id": "P07",
+      "dimensions": {
+        "w": 5,
+        "l": 6,
+        "h": 1
+      },
+      "orientation": "xyz",
+      "value": 14,
+      "weight": 2,
+      "isFragile": true,
+      "ETA": 2
+    },
+    {
+      "id": "P08",
+      "dimensions": {
+        "w": 2,
+        "l": 10,
+        "h": 3
+      },
+      "orientation": "xyz",
+      "value": 21,
+      "weight": 9,
+      "isFragile": false,
+      "ETA": 2
+    },
+    {
+      "id": "P09",
+      "dimensions": {
+        "w": 6,
+        "l": 7,
+        "h": 4
+      },
+      "orientation": "xyz",
+      "value": 42,
+      "weight": 10,
+      "isFragile": false,
+      "ETA": 0
+    },
+    {
+      "id": "P10",
+      "dimensions": {
+        "w": 6,
+        "l": 3,
+        "h": 4
+      },
+      "orientation": "xyz",
+      "value": 26,
+      "weight": 1,
+      "isFragile": false,
+      "ETA": 2
+    },
+    {
+      "id": "P11",
+      "dimensions": {
+        "w": 5,
+        "l": 10,
+        "h": 1
+      },
+      "orientation": "xyz",
+      "value": 49,
+      "weight": 2,
+      "isFragile": true,
+      "ETA": 1
+    },
+    {
+      "id": "P12",
+      "dimensions": {
+        "w": 3,
+        "l": 4,
+        "h": 3
+      },
+      "orientation": "xyz",
+      "value": 26,
+      "weight": 2,
+      "isFragile": false,
+      "ETA": 0
+    },
+    {
+      "id": "P13",
+      "dimensions": {
+        "w": 6,
+        "l": 3,
+        "h": 1
+      },
+      "orientation": "xyz",
+      "value": 16,
+      "weight": 9,
+      "isFragile": false,
+      "ETA": 1
+    },
+    {
+      "id": "P14",
+      "dimensions": {
+        "w": 4,
+        "l": 6,
+        "h": 2
+      },
+      "orientation": "xyz",
+      "value": 7,
+      "weight": 2,
+      "isFragile": true,
+      "ETA": 0
+    },
+    {
+      "id": "P15",
+      "dimensions": {
+        "w": 5,
+        "l": 7,
+        "h": 1
+      },
+      "orientation": "xyz",
+      "value": 26,
+      "weight": 4,
+      "isFragile": false,
+      "ETA": 0
+    },
+    {
+      "id": "P16",
+      "dimensions": {
+        "w": 2,
+        "l": 10,
+        "h": 4
+      },
+      "orientation": "xyz",
+      "value": 44,
+      "weight": 8,
+      "isFragile": true,
+      "ETA": 0
+    },
+    {
+      "id": "P17",
+      "dimensions": {
+        "w": 6,
+        "l": 4,
+        "h": 3
+      },
+      "orientation": "xyz",
+      "value": 44,
+      "weight": 1,
+      "isFragile": true,
+      "ETA": 1
+    },
+    {
+      "id": "P18",
+      "dimensions": {
+        "w": 5,
+        "l": 8,
+        "h": 1
+      },
+      "orientation": "xyz",
+      "value": 5,
+      "weight": 9,
+      "isFragile": true,
+      "ETA": 1
+    },
+    {
+      "id": "P19",
+      "dimensions": {
+        "w": 2,
+        "l": 9,
+        "h": 2
+      },
+      "orientation": "xyz",
+      "value": 46,
+      "weight": 6,
+      "isFragile": false,
+      "ETA": 2
+    },
+    {
+      "id": "P20",
+      "dimensions": {
+        "w": 2,
+        "l": 4,
+        "h": 2
+      },
+      "orientation": "xyz",
+      "value": 11,
+      "weight": 7,
+      "isFragile": false,
+      "ETA": 3
+    }
+  ]
+}

@@ -144,7 +144,7 @@ def genetic_algorithm(problem, config=None, initial=None):
     
     scores = []
     for state in population:
-        scores.append(objective(problem, state))
+        scores.append(objective(problem, state, config["objective"]))
     
     first_population, first_scores = population, scores
     top = scores.index(max(scores))
@@ -183,7 +183,7 @@ def genetic_algorithm(problem, config=None, initial=None):
         scores = []
     
         for state in population:
-            scores.append(objective(problem, state))
+            scores.append(objective(problem, state, config["objective"]))
     
         top = scores.index(max(scores))
     

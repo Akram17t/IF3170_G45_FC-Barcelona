@@ -50,7 +50,7 @@ def check_result(problem: Problem, result: RunResult):
         if state is None or score is None:
             if label != "best" or state is not None or score is not None:
                 raise ValueError(f"State/skor {label} tidak lengkap")
-        elif not _same(objective(problem, state), score):
+        elif not _same(objective(problem, state, config["objective"]), score):
             raise ValueError(f"Skor {label} tidak sesuai state")
     history = result.objective_history
     if not history or any(not isinstance(x, (int, float)) or not math.isfinite(x) or x < 0 for x in history):
@@ -76,7 +76,7 @@ def check_result(problem: Problem, result: RunResult):
                     raise ValueError("Histori per restart HC tidak konsisten")
                 for label, score in (("initial", local[0]), ("final", local[-1])):
                     state = State.from_dict(problem, run[label + "_state"])
-                    if not _same(objective(problem, state), score):
+                    if not _same(objective(problem, state, config["objective"]), score):
                         raise ValueError("Skor per restart HC tidak sesuai state")
                     if index == 0 and label == "initial" and state != result.initial_state:
                         raise ValueError("Initial state restart pertama berbeda")
@@ -101,7 +101,7 @@ def check_result(problem: Problem, result: RunResult):
         if iterations != len(history) - 1 or metrics["iterations"] != iterations or iterations > config["iterations"]:
             raise ValueError("Histori SA tidak konsisten")
         current = State.from_dict(problem, metrics["final_current"])
-        if current != result.final_state or not _same(objective(problem, current), history[-1]):
+        if current != result.final_state or not _same(objective(problem, current, config["objective"]), history[-1]):
             raise ValueError("Current SA harus sama dengan state akhir")
         if not _same(metrics["final_current_score"], history[-1]):
             raise ValueError("Metrik skor current SA tidak sesuai")
@@ -111,8 +111,8 @@ def check_result(problem: Problem, result: RunResult):
         if (len(stuck_history) != iterations + 1 or any(type(flag) is not bool for flag in stuck_history)
                 or type(metrics["initial_stuck"]) is not bool or metrics["initial_stuck"] != stuck_history[0]):
             raise ValueError("Histori stuck SA tidak konsisten")
-        if (stuck_history[0] != (not improving_neighbor_exists(problem, result.initial_state))
-                or stuck_history[-1] != (not improving_neighbor_exists(problem, current))):
+        if (stuck_history[0] != (not improving_neighbor_exists(problem, result.initial_state, config["objective"]))
+                or stuck_history[-1] != (not improving_neighbor_exists(problem, current, config["objective"]))):
             raise ValueError("Stuck SA tidak sesuai state awal/akhir")
 
         for i, record in enumerate(records, 1):
@@ -196,7 +196,7 @@ def check_result(problem: Problem, result: RunResult):
             population = metrics[label + "_population"]
             if len(population) != size:
                 raise ValueError("Ukuran snapshot populasi tidak sesuai")
-            scores = [objective(problem, State.from_dict(problem, item)) for item in population]
+            scores = [objective(problem, State.from_dict(problem, item), config["objective"]) for item in population]
             if len(metrics[label + "_population_scores"]) != size or not all(_same(a, b) for a, b in zip(scores, metrics[label + "_population_scores"])):
                 raise ValueError("Skor populasi tidak sesuai")
             if not _same(max(scores), history[index]) or not _same(sum(scores) / size, means[index]):

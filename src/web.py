@@ -19,10 +19,14 @@ FONTS = {"FCBARCELONAPLAYSOLID.woff2": "font/woff2", "FCBARCELONAPLAYSOLID.woff"
 
 def defaults():
     # HC beda parameter tiap varian, jadi digabung dulu di sini
+    # Form parameter cuma isi angka, jadi "objective" (teks) dipilih lewat dropdown sendiri di halaman
+    shown = {}
+    for algorithm, config in DEFAULTS.items():
+        shown[algorithm] = {key: value for key, value in config.items() if key != "objective"}
     hc = {}
     for variant, extra in HC_DEFAULTS.items():
-        hc[variant] = {**DEFAULTS["hc"], **extra}
-    return {"hc": hc, "sa": DEFAULTS["sa"], "ga": DEFAULTS["ga"]}
+        hc[variant] = {**shown["hc"], **extra}
+    return {"hc": hc, "sa": shown["sa"], "ga": shown["ga"]}
 
 
 def cases():
@@ -34,13 +38,17 @@ def cases():
 
 def save_directory(body, result):
     # SA dipisah per kasus, seed, dan run biar hasil eksperimen ga ketimpa
+    # Objective eta (bonus) disimpan di output/bonus_eta biar ga nimpa hasil objective value
+    base = ROOT / "output"
+    if result.config["objective"] == "eta":
+        base = base / "bonus_eta"
     if body["algorithm"] == "ga":
         config = result.config
-        return ROOT / "output" / "ga" / f"pop{config['population_size']}-gen{config['generations']}" / f"seed{result.seed}"
+        return base / "ga" / f"pop{config['population_size']}-gen{config['generations']}" / f"seed{result.seed}"
     if body["algorithm"] == "hc":
-        return ROOT / "output" / "hc" / body["variant"] / f"seed{result.seed}"
+        return base / "hc" / body["variant"] / f"seed{result.seed}"
     problem = Problem.from_dict(body["problem"])
-    return sa_directory(ROOT / "output" / "sa", problem, body.get("case_name", "custom"), result.seed)
+    return sa_directory(base / "sa", problem, body.get("case_name", "custom"), result.seed)
 
 
 def run(body):

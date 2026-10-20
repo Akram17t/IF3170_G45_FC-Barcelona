@@ -57,6 +57,16 @@ def total_weight(problem: Problem, state: State) -> Number:
     return fsum(p.weight for p in problem.packages if state.placements[p.id].position is not None)
 
 
-def objective(problem: Problem, state: State) -> Number:
+OBJECTIVES = ("value", "eta")
+
+
+def package_score(package, kind="value"):
+    # "value" = value paket apa adanya, "eta" = value / (1 + ETA / 2) jadi paket yang lebih mendesak lebih berharga
+    if kind == "eta":
+        return package.value / (1 + package.eta / 2)
+    return package.value
+
+
+def objective(problem: Problem, state: State, kind="value") -> Number:
     require_valid(problem, state)
-    return fsum(p.value for p in problem.packages if state.placements[p.id].position is not None)
+    return fsum(package_score(p, kind) for p in problem.packages if state.placements[p.id].position is not None)
