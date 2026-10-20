@@ -25,14 +25,14 @@ def steepest_ascent(problem, config=None, initial=None):
     rng = Random(config["seed"])
     first = initial_state(problem, rng, initial)
     current = first
-    score = objective(problem, current)
+    score = objective(problem, current, config["objective"])
     history = [score]
     accepted_moves, evaluated_neighbors = 0, 0
     stop_reason = "iteration_limit"
 
     for _ in range(config["iterations"]):
         # Semua neighbor dicek, ambil yang value-nya paling tinggi
-        neighbor, neighbor_score, evaluated = best_feasible_neighbor(problem, current, rng)
+        neighbor, neighbor_score, evaluated = best_feasible_neighbor(problem, current, rng, config["objective"])
         evaluated_neighbors += evaluated
         # Kalo yang terbaik aja ga lebih bagus, pencarian berhenti
         if neighbor is None or neighbor_score <= score:
@@ -57,14 +57,14 @@ def sideways(problem, config=None, initial=None):
     rng = Random(config["seed"])
     first = initial_state(problem, rng, initial)
     current = first
-    score = objective(problem, current)
+    score = objective(problem, current, config["objective"])
     history = [score]
     accepted_moves, evaluated_neighbors = 0, 0
     sideways_moves, consecutive_sideways = 0, 0
     stop_reason = "iteration_limit"
 
     for _ in range(config["iterations"]):
-        neighbor, neighbor_score, evaluated = best_feasible_neighbor(problem, current, rng)
+        neighbor, neighbor_score, evaluated = best_feasible_neighbor(problem, current, rng, config["objective"])
         evaluated_neighbors += evaluated
         if neighbor is None or neighbor_score < score:
             history.append(score)
@@ -101,7 +101,7 @@ def stochastic(problem, config=None, initial=None):
     rng = Random(config["seed"])
     first = initial_state(problem, rng, initial)
     current = first
-    score = objective(problem, current)
+    score = objective(problem, current, config["objective"])
     history = [score]
     accepted_moves, evaluated_neighbors = 0, 0
     sampling_attempts, sampling_failures = 0, 0
@@ -113,7 +113,7 @@ def stochastic(problem, config=None, initial=None):
             sampling_failures += 1
             history.append(score)
             continue
-        neighbor_score = objective(problem, sampled.state)
+        neighbor_score = objective(problem, sampled.state, config["objective"])
         evaluated_neighbors += 1
         if neighbor_score > score:
             current, score = sampled.state, neighbor_score
@@ -135,9 +135,9 @@ def random_restart(problem, config=None, initial=None):
     rng = Random(config["seed"])
     first = initial_state(problem, rng, initial)
     best = first
-    best_score = objective(problem, first)
+    best_score = objective(problem, first, config["objective"])
     history, runs = [], []
-    base_config = {key: config[key] for key in ("seed", "iterations", "max_attempts")}
+    base_config = {key: config[key] for key in ("seed", "objective", "iterations", "max_attempts")}
 
     for restart in range(config["max_restarts"] + 1):
         start = first if restart == 0 else initial_state(problem, rng, None)

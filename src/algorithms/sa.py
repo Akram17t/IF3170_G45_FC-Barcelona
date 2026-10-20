@@ -53,7 +53,7 @@ def simulated_annealing(problem, config=None, initial=None):
 
         first = initial_state(problem, randomm, initial)
         current = first
-        score = objective(problem, current)
+        score = objective(problem, current, config["objective"])
         best = current #buat catet dulu aja
         best_score = score
         history = [score]
@@ -63,7 +63,7 @@ def simulated_annealing(problem, config=None, initial=None):
         attempts_sample = 0
         failures_sample = 0 
         # Stuck di sini juga plateau and global optimum
-        stuck = not improving_neighbor_exists(problem, current)
+        stuck = not improving_neighbor_exists(problem, current, config["objective"])
         stuck_history = [stuck]
         stucks = int(stuck)
         stuck_i = 0
@@ -89,7 +89,7 @@ def simulated_annealing(problem, config=None, initial=None):
                         break
 
                 next_state = samples.state
-                next_score = objective(problem, next_state)
+                next_score = objective(problem, next_state, config["objective"])
                 delta = next_score - score
 
                 if delta > 0:
@@ -112,7 +112,7 @@ def simulated_annealing(problem, config=None, initial=None):
                         if score > best_score:
                                 best = current
                                 best_score = score
-                        stuck = not improving_neighbor_exists(problem, current)
+                        stuck = not improving_neighbor_exists(problem, current, config["objective"])
 
                 if stuck:
                         stuck_i += 1

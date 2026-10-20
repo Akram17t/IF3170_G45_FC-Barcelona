@@ -5,7 +5,7 @@ from itertools import combinations
 
 from .initialize import candidate_position
 from .model import Placement, Position, State, oriented_size, rotate
-from .validation import objective, require_valid, validate
+from .validation import objective, package_score, require_valid, validate
 
 
 class MoveKind(str, Enum):
@@ -139,11 +139,11 @@ def iter_feasible_neighbors(problem, state):
                         yield candidate
 
 
-def best_feasible_neighbor(problem, state, rng):
+def best_feasible_neighbor(problem, state, rng, kind="value"):
     # Ambil value tertinggi tanpa nyimpen semua neighbor dalam list
     best, best_score, ties, evaluated = None, float("-inf"), 0, 0
     for candidate in iter_feasible_neighbors(problem, state):
-        score = objective(problem, candidate)
+        score = objective(problem, candidate, kind)
         evaluated += 1
         if score > best_score:
             best, best_score, ties = candidate, score, 1
@@ -155,7 +155,7 @@ def best_feasible_neighbor(problem, state, rng):
     return best, best_score, evaluated
 
 
-def improving_neighbor_exists(problem, state):
+def improving_neighbor_exists(problem, state, kind="value"):
     # Cek cuma insert dan swap masuk/luar bisa naikin value
 
     require_valid(problem, state)
@@ -169,7 +169,7 @@ def improving_neighbor_exists(problem, state):
 
     for package in outside:
         # Coba paket + di setiap posisi int.
-        if package.value > 0:
+        if package_score(package, kind) > 0:
             orientation = state.placements[package.id].orientation
             width, length, height = oriented_size(package, orientation)
             truck_width, truck_length, truck_height = problem.truck.dimensions
@@ -185,7 +185,7 @@ def improving_neighbor_exists(problem, state):
 
         # Coba swap paket yang nilainya lebih kecil
         for other in inside:
-            if package.value > other.value:
+            if package_score(package, kind) > package_score(other, kind):
                 move = Move(MoveKind.SWAP, package.id, other_id=other.id)
                 candidate = apply_move(problem, state, move)
                 if candidate is not None:

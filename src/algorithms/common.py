@@ -1,21 +1,22 @@
 # Configuration and state awal buat semua algoritm nanti
-
 import math
 from random import Random
 
 from ..initialize import random_feasible_state
-from ..validation import require_valid
+from ..validation import OBJECTIVES, require_valid
 
 
 DEFAULTS = {
     "hc": {
         "seed": 0,
+        "objective": "value",
         "iterations": 500,
         "max_attempts": 100,
     },
     # nilai awal implementasi doang (nanti di schedule)
     "sa": {
         "seed": 0,
+        "objective": "value",
         "iterations": 500,
         "max_attempts": 100,
         "initial_temperature": 20.0,
@@ -24,6 +25,7 @@ DEFAULTS = {
     },
     "ga": {
         "seed": 0,
+        "objective": "value",
         "generations": 40,
         "population_size": 20,
         "mutation_rate": 0.3,
@@ -62,7 +64,10 @@ def configuration(algorithm, config, variant=None):
     }
     zero_allowed_keys = {"iterations", "generations", "elitism", "max_sideways_moves", "max_restarts"}
     for key, value in result.items():
-        if key in integer_keys:
+        if key == "objective":
+            if value not in OBJECTIVES:
+                raise ValueError(f"objective harus salah satu dari {OBJECTIVES}")
+        elif key in integer_keys:
             if isinstance(value, bool) or not isinstance(value, int):
                 raise ValueError(f"{key} harus integer")
             # Seed bisa negatif tp parameter lain ada minimum

@@ -135,6 +135,11 @@ footer { padding: 20px 24px 32px; text-align: center; font: 600 13px "FC Barcelo
     </select>
     <div id="variantBox" hidden><label>Varian</label><select id="variant"></select></div>
     <div id="params"></div>
+    <label>Objective</label>
+    <select id="objective">
+      <option value="value" selected>value: jumlah value paket di dalam truk</option>
+      <option value="eta">eta: value / (1 + ETA / 2), paket yang lebih mendesak lebih berharga</option>
+    </select>
     <div id="saHint" class="hint" hidden>Suhu memakai T awal * cooling rate^(iterasi−1). Nilai default adalah pilihan implementasi.
       Seed menentukan urutan acak yang bisa diulang, bukan jumlah thread. Cooling rate 1 mempertahankan suhu tetap sampai batas iterasi.</div>
     <div class="hint">Isi beberapa nilai dengan koma (misal <code>20,40,80</code>) untuk eksperimen. Semua kombinasi dijalankan berurutan.</div>
@@ -451,7 +456,7 @@ $("runBtn").addEventListener("click", async () => {
       progress();
       timer = setInterval(progress, 300);
       try {
-        const response = await fetch("/api/run", { method: "POST", body: JSON.stringify({ ...batch, config: list[i] }) });
+        const response = await fetch("/api/run", { method: "POST", body: JSON.stringify({ ...batch, config: { ...list[i], objective: $("objective").value } }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
         data.variant = batch.variant;
@@ -486,8 +491,8 @@ function renderStats() {
   if (!run) { $("stats").innerHTML = ""; return; }
   const count = run.algorithm === "ga" ? run.config.generations : run.metrics.iterations;
   const cards = [
-    ["Value awal", fmt(run.initial_score)], ["Value akhir", fmt(run.final_score)],
-    ["Value terbaik", fmt(run.best_score)], ["Durasi", run.duration_seconds.toFixed(2) + " s"],
+    ["Objective awal", fmt(run.initial_score)], ["Objective akhir", fmt(run.final_score)],
+    ["Objective terbaik", fmt(run.best_score)], ["Durasi", run.duration_seconds.toFixed(2) + " s"],
     [run.algorithm === "ga" ? "Generasi" : "Iterasi", count], ["Stop", run.stop_reason],
   ];
   if (run.algorithm === "sa") {
